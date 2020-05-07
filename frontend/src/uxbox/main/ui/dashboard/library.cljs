@@ -393,4 +393,6 @@
             [:p.library-content-empty-text "You still have no elements in this library"]])]]
 
        [:div.library-content-empty
-        [:p.library-content-empty-text "You still have no image libraries."]])]))
+        [:div.library-content-empty-text
+         i/library-images
+         [:p "You still have no image libraries."]]])]))
