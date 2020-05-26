@@ -1003,7 +1003,6 @@ input[type=range]:focus::-ms-fill-upper {
 // Banner top
 
 .msg-banner {
-  position: fixed;
   top: 0;
   left: 0px;
   width: 100%;
@@ -1025,7 +1024,7 @@ input[type=range]:focus::-ms-fill-upper {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    opacity: .5;
+    opacity: .35;
 
     svg {
       fill: $color-black;
@@ -1037,7 +1036,6 @@ input[type=range]:focus::-ms-fill-upper {
     &:hover {
       opacity: .8;
     }
-
   }
 
   .msg-content {
@@ -1060,6 +1058,10 @@ input[type=range]:focus::-ms-fill-upper {
     span {
       font-size: $fs15;
     }
+  }
+
+  &.fixed {
+    position: fixed;
   }
 
   &.error {
@@ -1086,6 +1088,91 @@ input[type=range]:focus::-ms-fill-upper {
 
   &.hide-message {
     @include animation(0, .6s, fadeOutUp);
+  }
+}
+
+.msg-inline {
+  display: flex;
+  margin-bottom: $big;
+  min-height: 40px;
+  width: 100%;
+
+  .icon {
+    display: flex;
+    flex-shrink: 0;
+    justify-content: center;
+    margin-right: $small;
+    padding: $small;
+    width: 40px;
+
+    svg {
+      fill: $color-white;
+      height: 20px;
+      width: 20px;
+    }
+  }
+
+  .msg-text {
+    display: flex;
+    font-size: $fs14;
+    color: $color-black;
+    padding: $small;
+  }
+  
+  &.error {
+    background-color: lighten($color-danger,30%);
+    .icon {
+      background-color: $color-danger;
+    }
+  }
+
+  &.success {
+    background-color: lighten($color-success,30%);
+    .icon {
+      background-color: $color-success;
+    }
+  }
+
+  &.warning {
+    background-color: lighten($color-warning,30%);
+    .icon {
+      background-color: $color-warning;
+    }
+  }
+  
+  &.info {
+    background-color: lighten($color-info,30%);
+    .icon {
+      background-color: $color-info;
+    }
+  }
+
+  .close-button {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    opacity: .35;
+
+    svg {
+      fill: $color-black;
+      height: 18px;
+      width: 18px;
+      transform: rotate(45deg);
+    }
+
+    &:hover {
+      opacity: .8;
+    }
+  }
+  
+  &.quick {
+    .close-button {
+      display: none;
+    }
   }
 }
 
