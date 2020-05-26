@@ -38,6 +38,13 @@
         locale (mf/deref i18n/locale)]
     [:*
      [:& messages]
+
+     [:div.msg-banner.error
+      [:div.msg-content
+       [:div.icon i/msg-error]
+       [:span "Lorem ipsum dolor sit amet"]
+      [:div.close-button i/close]]]
+
      [:div.auth
       [:section.auth-sidebar
        [:a.logo i/logo]
