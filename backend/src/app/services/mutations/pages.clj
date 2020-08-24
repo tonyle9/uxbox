@@ -39,108 +39,108 @@
 
 ;; --- Mutation: Create Page
 
-(declare create-page)
+;; (declare create-page)
 
-(s/def ::create-page
-  (s/keys :req-un [::profile-id ::file-id ::name ::ordering ::data]
-          :opt-un [::id]))
+;; (s/def ::create-page
+;;   (s/keys :req-un [::profile-id ::file-id ::name ::ordering ::data]
+;;           :opt-un [::id]))
 
-(sm/defmutation ::create-page
-  [{:keys [profile-id file-id] :as params}]
-  (db/with-atomic [conn db/pool]
-    (files/check-edition-permissions! conn profile-id file-id)
-    (create-page conn params)))
+;; (sm/defmutation ::create-page
+;;   [{:keys [profile-id file-id] :as params}]
+;;   (db/with-atomic [conn db/pool]
+;;     (files/check-edition-permissions! conn profile-id file-id)
+;;     (create-page conn params)))
 
-(defn- create-page
-  [conn {:keys [id file-id name ordering data] :as params}]
-  (let [id   (or id (uuid/next))
-        data (blob/encode data)]
-    (-> (db/insert! conn :page
-                    {:id id
-                     :file-id file-id
-                     :name name
-                     :ordering ordering
-                     :data data})
-        (decode-row))))
+;; (defn- create-page
+;;   [conn {:keys [id file-id name ordering data] :as params}]
+;;   (let [id   (or id (uuid/next))
+;;         data (blob/encode data)]
+;;     (-> (db/insert! conn :page
+;;                     {:id id
+;;                      :file-id file-id
+;;                      :name name
+;;                      :ordering ordering
+;;                      :data data})
+;;         (decode-row))))
 
 
 ;; --- Mutation: Rename Page
 
-(declare rename-page)
-(declare select-page-for-update)
+;; (declare rename-page)
+;; (declare select-page-for-update)
 
-(s/def ::rename-page
-  (s/keys :req-un [::id ::name ::profile-id]))
+;; (s/def ::rename-page
+;;   (s/keys :req-un [::id ::name ::profile-id]))
 
-(sm/defmutation ::rename-page
-  [{:keys [id name profile-id]}]
-  (db/with-atomic [conn db/pool]
-    (let [page (select-page-for-update conn id)]
-      (files/check-edition-permissions! conn profile-id (:file-id page))
-      (rename-page conn (assoc page :name name)))))
+;; (sm/defmutation ::rename-page
+;;   [{:keys [id name profile-id]}]
+;;   (db/with-atomic [conn db/pool]
+;;     (let [page (select-page-for-update conn id)]
+;;       (files/check-edition-permissions! conn profile-id (:file-id page))
+;;       (rename-page conn (assoc page :name name)))))
 
-(defn- select-page-for-update
-  [conn id]
-  (db/get-by-id conn :page id {:for-update true}))
+;; (defn- select-page-for-update
+;;   [conn id]
+;;   (db/get-by-id conn :page id {:for-update true}))
 
-(defn- rename-page
-  [conn {:keys [id name] :as params}]
-  (db/update! conn :page
-              {:name name}
-              {:id id}))
+;; (defn- rename-page
+;;   [conn {:keys [id name] :as params}]
+;;   (db/update! conn :page
+;;               {:name name}
+;;               {:id id}))
 
 
 ;; --- Mutation: Sort Pages
 
-(s/def ::page-ids (s/every ::us/uuid :kind vector?))
-(s/def ::reorder-pages
-  (s/keys :req-un [::profile-id ::file-id ::page-ids]))
+;; (s/def ::page-ids (s/every ::us/uuid :kind vector?))
+;; (s/def ::reorder-pages
+;;   (s/keys :req-un [::profile-id ::file-id ::page-ids]))
 
-(declare update-page-ordering)
+;; (declare update-page-ordering)
 
-(sm/defmutation ::reorder-pages
-  [{:keys [profile-id file-id page-ids]}]
-  (db/with-atomic [conn db/pool]
-    (run! #(update-page-ordering conn file-id %)
-          (d/enumerate page-ids))
-    nil))
+;; (sm/defmutation ::reorder-pages
+;;   [{:keys [profile-id file-id page-ids]}]
+;;   (db/with-atomic [conn db/pool]
+;;     (run! #(update-page-ordering conn file-id %)
+;;           (d/enumerate page-ids))
+;;     nil))
 
-(defn- update-page-ordering
-  [conn file-id [ordering page-id]]
-  (db/update! conn :page
-              {:ordering ordering}
-              {:file-id file-id
-               :id page-id}))
+;; (defn- update-page-ordering
+;;   [conn file-id [ordering page-id]]
+;;   (db/update! conn :page
+;;               {:ordering ordering}
+;;               {:file-id file-id
+;;                :id page-id}))
 
 
 ;; --- Mutation: Generate Share Token
 
-(declare assign-page-share-token)
+;; (declare assign-page-share-token)
 
-(s/def ::generate-page-share-token
-  (s/keys :req-un [::id]))
+;; (s/def ::generate-page-share-token
+;;   (s/keys :req-un [::id]))
 
-(sm/defmutation ::generate-page-share-token
-  [{:keys [id] :as params}]
-  (let [token (-> (sodi.prng/random-bytes 16)
-                  (sodi.util/bytes->b64s))]
-    (db/with-atomic [conn db/pool]
-      (db/update! conn :page
-                  {:share-token token}
-                  {:id id}))))
+;; (sm/defmutation ::generate-page-share-token
+;;   [{:keys [id] :as params}]
+;;   (let [token (-> (sodi.prng/random-bytes 16)
+;;                   (sodi.util/bytes->b64s))]
+;;     (db/with-atomic [conn db/pool]
+;;       (db/update! conn :page
+;;                   {:share-token token}
+;;                   {:id id}))))
 
 
 ;; --- Mutation: Clear Share Token
 
-(s/def ::clear-page-share-token
-  (s/keys :req-un [::id]))
+;; (s/def ::clear-page-share-token
+;;   (s/keys :req-un [::id]))
 
-(sm/defmutation ::clear-page-share-token
-  [{:keys [id] :as params}]
-  (db/with-atomic [conn db/pool]
-      (db/update! conn :page
-                  {:share-token nil}
-                  {:id id})))
+;; (sm/defmutation ::clear-page-share-token
+;;   [{:keys [id] :as params}]
+;;   (db/with-atomic [conn db/pool]
+;;       (db/update! conn :page
+;;                   {:share-token nil}
+;;                   {:id id})))
 
 
 
@@ -148,108 +148,108 @@
 
 ;; A generic, Changes based (granular) page update method.
 
-(s/def ::changes
-  (s/coll-of map? :kind vector?))
+;; (s/def ::changes
+;;   (s/coll-of map? :kind vector?))
 
-(s/def ::session-id ::us/uuid)
-(s/def ::revn ::us/integer)
-(s/def ::update-page
-  (s/keys :req-un [::id ::session-id ::profile-id ::revn ::changes]))
+;; (s/def ::session-id ::us/uuid)
+;; (s/def ::revn ::us/integer)
+;; (s/def ::update-page
+;;   (s/keys :req-un [::id ::session-id ::profile-id ::revn ::changes]))
 
-(declare update-page)
-(declare retrieve-lagged-changes)
-(declare insert-page-change!)
+;; (declare update-page)
+;; (declare retrieve-lagged-changes)
+;; (declare insert-page-change!)
 
-(sm/defmutation ::update-page
-  [{:keys [id profile-id] :as params}]
-  (db/with-atomic [conn db/pool]
-    (let [{:keys [file-id] :as page} (select-page-for-update conn id)]
-      (files/check-edition-permissions! conn profile-id file-id)
-      (update-page conn page params))))
+;; (sm/defmutation ::update-page
+;;   [{:keys [id profile-id] :as params}]
+;;   (db/with-atomic [conn db/pool]
+;;     (let [{:keys [file-id] :as page} (select-page-for-update conn id)]
+;;       (files/check-edition-permissions! conn profile-id file-id)
+;;       (update-page conn page params))))
 
-(defn- update-page
-  [conn page params]
-  (when (> (:revn params)
-           (:revn page))
-    (ex/raise :type :validation
-              :code :revn-conflict
-              :hint "The incoming revision number is greater that stored version."
-              :context {:incoming-revn (:revn params)
-                        :stored-revn (:revn page)}))
-  (let [sid      (:session-id params)
-        changes  (:changes params)
-        page     (-> page
-                     (update :data blob/decode)
-                     (update :data pmg/migrate-data)
-                     (update :data cp/process-changes changes)
-                     (update :data blob/encode)
-                     (update :revn inc)
-                     (assoc :changes (blob/encode changes)
-                            :session-id sid))
+;; (defn- update-page
+;;   [conn page params]
+;;   (when (> (:revn params)
+;;            (:revn page))
+;;     (ex/raise :type :validation
+;;               :code :revn-conflict
+;;               :hint "The incoming revision number is greater that stored version."
+;;               :context {:incoming-revn (:revn params)
+;;                         :stored-revn (:revn page)}))
+;;   (let [sid      (:session-id params)
+;;         changes  (:changes params)
+;;         page     (-> page
+;;                      (update :data blob/decode)
+;;                      (update :data pmg/migrate-data)
+;;                      (update :data cp/process-changes changes)
+;;                      (update :data blob/encode)
+;;                      (update :revn inc)
+;;                      (assoc :changes (blob/encode changes)
+;;                             :session-id sid))
 
-        chng     (insert-page-change! conn page)
-        msg      {:type :page-change
-                  :profile-id (:profile-id params)
-                  :page-id (:id page)
-                  :session-id sid
-                  :revn (:revn page)
-                  :changes changes}]
+;;         chng     (insert-page-change! conn page)
+;;         msg      {:type :page-change
+;;                   :profile-id (:profile-id params)
+;;                   :page-id (:id page)
+;;                   :session-id sid
+;;                   :revn (:revn page)
+;;                   :changes changes}]
 
-    @(redis/run! :publish {:channel (str (:file-id page))
-                           :message (t/encode-str msg)})
+;;     @(redis/run! :publish {:channel (str (:file-id page))
+;;                            :message (t/encode-str msg)})
 
-    (db/update! conn :page
-                {:revn (:revn page)
-                 :data (:data page)}
-                {:id (:id page)})
+;;     (db/update! conn :page
+;;                 {:revn (:revn page)
+;;                  :data (:data page)}
+;;                 {:id (:id page)})
 
-    (retrieve-lagged-changes conn chng params)))
+;;     (retrieve-lagged-changes conn chng params)))
 
-(defn- insert-page-change!
-  [conn {:keys [revn data changes session-id] :as page}]
-  (let [id (uuid/next)
-        page-id (:id page)]
-    (db/insert! conn :page-change
-                {:id id
-                 :session-id session-id
-                 :page-id page-id
-                 :revn revn
-                 :data data
-                 :changes changes})))
+;; (defn- insert-page-change!
+;;   [conn {:keys [revn data changes session-id] :as page}]
+;;   (let [id (uuid/next)
+;;         page-id (:id page)]
+;;     (db/insert! conn :page-change
+;;                 {:id id
+;;                  :session-id session-id
+;;                  :page-id page-id
+;;                  :revn revn
+;;                  :data data
+;;                  :changes changes})))
 
-(def ^:private
-  sql:lagged-changes
-  "select s.id, s.revn, s.page_id,
-          s.session_id, s.changes
-     from page_change as s
-    where s.page_id = ?
-      and s.revn > ?
-    order by s.created_at asc")
+;; (def ^:private
+;;   sql:lagged-changes
+;;   "select s.id, s.revn, s.page_id,
+;;           s.session_id, s.changes
+;;      from page_change as s
+;;     where s.page_id = ?
+;;       and s.revn > ?
+;;     order by s.created_at asc")
 
-(defn- retrieve-lagged-changes
-  [conn snapshot params]
-  (->> (db/exec! conn [sql:lagged-changes (:id params) (:revn params)])
-       (mapv decode-row)))
+;; (defn- retrieve-lagged-changes
+;;   [conn snapshot params]
+;;   (->> (db/exec! conn [sql:lagged-changes (:id params) (:revn params)])
+;;        (mapv decode-row)))
 
 ;; --- Mutation: Delete Page
 
-(declare mark-page-deleted)
+;; (declare mark-page-deleted)
 
-(s/def ::delete-page
-  (s/keys :req-un [::profile-id ::id]))
+;; (s/def ::delete-page
+;;   (s/keys :req-un [::profile-id ::id]))
 
-(sm/defmutation ::delete-page
-  [{:keys [id profile-id]}]
-  (db/with-atomic [conn db/pool]
-    (let [page (select-page-for-update conn id)]
-      (files/check-edition-permissions! conn profile-id (:file-id page))
+;; (sm/defmutation ::delete-page
+;;   [{:keys [id profile-id]}]
+;;   (db/with-atomic [conn db/pool]
+;;     (let [page (select-page-for-update conn id)]
+;;       (files/check-edition-permissions! conn profile-id (:file-id page))
 
-      ;; Schedule object deletion
-      (tasks/submit! conn {:name "delete-object"
-                           :delay cfg/default-deletion-delay
-                           :props {:id id :type :page}})
+;;       ;; Schedule object deletion
+;;       (tasks/submit! conn {:name "delete-object"
+;;                            :delay cfg/default-deletion-delay
+;;                            :props {:id id :type :page}})
 
-      (db/update! conn :page
-                  {:deleted-at (dt/now)}
-                  {:id id})
-      nil)))
+;;       (db/update! conn :page
+;;                   {:deleted-at (dt/now)}
+;;                   {:id id})
+;;       nil)))

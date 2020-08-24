@@ -11,12 +11,16 @@
   (:require
    [clojure.spec.alpha :as s]
    [promesa.core :as p]
+   [app.common.pages-migrations :as pmg]
    [app.common.exceptions :as ex]
    [app.common.spec :as us]
    [app.db :as db]
    [app.media :as media]
    [app.services.queries :as sq]
    [app.util.blob :as blob]))
+
+;; TODO: remove unused window functions because we no longer need
+;; query pages because they aready part of file row
 
 (declare decode-row)
 
@@ -82,8 +86,10 @@
                                 profile-id team-id
                                 profile-id team-id
                                 search-term])]
-    (mapv decode-row rows)))
-
+    (->> rows
+         (map decode-row)
+         (map pmg/migrate-file)
+         (vec))))
 
 ;; --- Query: Project Files
 
@@ -145,7 +151,9 @@
   (->> (db/exec! db/pool [sql:files
                           profile-id profile-id
                           project-id profile-id])
-       (mapv decode-row)))
+       (map decode-row)
+       (map pmg/migrate-file)
+       (vec)))
 
 
 ;; --- Query: File Permissions
@@ -215,7 +223,9 @@
   (let [row (db/exec-one! conn [sql:file id])]
     (when-not row
       (ex/raise :type :not-found))
-    (decode-row row)))
+
+    (-> (decode-row row)
+        (pmg/migrate-file))))
 
 (s/def ::file
   (s/keys :req-un [::profile-id ::id]))
@@ -256,7 +266,6 @@
     (check-edition-permissions! conn profile-id id)
     (retrieve-file-users conn id)))
 
-
 ;; --- Query: Shared Library Files
 
 (def ^:private sql:shared-files
@@ -290,7 +299,9 @@
 (sq/defquery ::shared-files
   [{:keys [profile-id team-id] :as params}]
   (->> (db/exec! db/pool [sql:shared-files team-id])
-       (mapv decode-row)))
+       (map decode-row)
+       (map pmg/migrate-file)
+       (vec)))
 
 
 ;; --- Query: File Libraries used by a File
@@ -312,7 +323,9 @@
 (defn retrieve-file-libraries
   [conn file-id]
   (->> (db/exec! conn [sql:file-libraries file-id])
-       (mapv decode-row)))
+       (map decode-row)
+       (map pmg/migrate-file)
+       (vec)))
 
 (s/def ::file-libraries
   (s/keys :req-un [::profile-id ::file-id]))
@@ -325,6 +338,8 @@
 
 
 ;; --- Query: Single File Library
+
+;; TODO: this looks like is duplicate of `::file`
 
 (def ^:private sql:file-library
   "select fl.*
@@ -351,8 +366,9 @@
 ;; --- Helpers
 
 (defn decode-row
-  [{:keys [pages data] :as row}]
+  [{:keys [pages data changes] :as row}]
   (when row
     (cond-> row
+      changes (assoc :changes (blob/decode changes))
       data (assoc :data (blob/decode data))
       pages (assoc :pages (vec (.getArray pages))))))

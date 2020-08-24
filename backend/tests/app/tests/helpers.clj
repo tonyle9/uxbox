@@ -111,7 +111,7 @@
 
 (defn create-page
   [conn profile-id file-id i]
-  (#'pages/create-page conn {:id (mk-uuid "page" i)
+  #_(#'pages/create-page conn {:id (mk-uuid "page" i)
                              :profile-id profile-id
                              :file-id file-id
                              :name (str "page" i)

@@ -21,6 +21,7 @@
    [app.common.uuid :as uuid]))
 
 (def page-version 5)
+(def file-version 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Page Transformation Changes
@@ -160,10 +161,16 @@
 (s/def ::objects
   (s/map-of uuid? ::shape))
 
-(s/def ::data
-  (s/keys :req-un [::version
-                   ::options
+(s/def ::page
+  (s/keys :req-un [::options
                    ::objects]))
+
+(s/def ::page-ids (s/coll-of ::us/uuid :kind vector?))
+(s/def ::pages (s/map-of ::us/uuid ::page))
+
+;; TODO: missing colors and components
+(s/def ::data
+  (s/keys :req-un [::page-ids ::pages]))
 
 (s/def ::ids (s/coll-of ::us/uuid))
 (s/def ::attr keyword?)
@@ -180,27 +187,28 @@
 
 (defmulti change-spec-impl :type)
 
-(s/def :set-option/option any? #_(s/or keyword? (s/coll-of keyword?)))
-(s/def :set-option/value any?)
+(s/def :internal.changes.set-option/option any?)
+(s/def :internal.changes.set-option/value any?)
 
 (defmethod change-spec-impl :set-option [_]
-  (s/keys :req-un [:set-option/option :set-option/value]))
+  (s/keys :req-un [:internal.changes.set-option/option
+                   :internal.changes.set-option/value]))
 
 (defmethod change-spec-impl :add-obj [_]
-  (s/keys :req-un [::id ::frame-id ::obj]
+  (s/keys :req-un [::id ::page-id ::frame-id ::obj]
           :opt-un [::parent-id]))
 
 (defmethod change-spec-impl :mod-obj [_]
-  (s/keys :req-un [::id ::operations]))
+  (s/keys :req-un [::id ::page-id ::operations]))
 
 (defmethod change-spec-impl :del-obj [_]
-  (s/keys :req-un [::id]))
+  (s/keys :req-un [::id ::page-id]))
 
 (defmethod change-spec-impl :reg-objects [_]
-  (s/keys :req-un [::shapes]))
+  (s/keys :req-un [::page-id ::shapes]))
 
 (defmethod change-spec-impl :mov-objects [_]
-  (s/keys :req-un [::parent-id ::shapes]
+  (s/keys :req-un [::page-id ::parent-id ::shapes]
           :opt-un [::index]))
 
 (s/def ::change (s/multi-spec change-spec-impl :type))
@@ -208,6 +216,7 @@
 
 (def root uuid/zero)
 
+;; TODO: pendint to be removed
 (def default-page-data
   "A reference value of the empty page data."
   {:version page-version
@@ -219,8 +228,20 @@
      :name "root"
      :shapes []}}})
 
-(def default-color "#b1b2b5") ;; $color-gray-20
+(def empty-page-data
+  {:options {}
+   :objects
+   {root
+    {:id root
+     :type :frame
+     :name "root"}}})
 
+(def empty-file-data
+  {:version file-version
+   :pages []
+   :pages-index {}})
+
+(def default-color "#b1b2b5") ;; $color-gray-20
 (def default-shape-attrs
   {:fill-color default-color
    :fill-opacity 1})
@@ -297,7 +318,10 @@
 (defn make-minimal-shape
   [type]
   (let [shape (d/seek #(= type (:type %)) minimal-shapes)]
-    (assert shape "unexpected shape type")
+    (when-not shape
+      (ex/raise :type :assertion
+                :code :shape-type-not-implemented
+                :context {:type type}))
     (assoc shape
            :id (uuid/next)
            :x 0
@@ -314,6 +338,14 @@
                      :height 1}
            :points []
            :segments [])))
+
+(defn make-file-data
+  []
+  (let [id (uuid/next)
+        pd (assoc empty-page-data :id id)]
+    (-> empty-file-data
+        (update :pages conj id)
+        (update :pages-index assoc id pd))))
 
 ;; --- Changes Processing Impl
 
@@ -332,11 +364,13 @@
                data)))
 
 (defmethod process-change :set-option
-  [data {:keys [option value]}]
-  (let [path (if (seqable? option) option [option])]
-    (if value
-      (assoc-in data (into [:options] path) value)
-      (assoc data :options (d/dissoc-in (:options data) path)))))
+  [data {:keys [page-id option value]}]
+  (d/update-in-when data [:pages page-id]
+                    (fn [data]
+                      (let [path (if (seqable? option) option [option])]
+                        (if value
+                          (assoc-in data (into [:options] path) value)
+                          (assoc data :options (d/dissoc-in (:options data) path)))))))
 
 (defmethod process-change :add-obj
   [data {:keys [id obj frame-id parent-id index] :as change}]
@@ -526,5 +560,6 @@
 
 (defmethod process-operation :default
   [shape op]
-  (ex/raise :type :operation-not-implemented
+  (ex/raise :type :not-implemented
+            :code :operation-not-implemented
             :context {:type (:type op)}))
