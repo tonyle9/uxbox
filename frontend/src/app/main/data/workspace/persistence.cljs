@@ -148,18 +148,10 @@
       (->> (rx/zip (rp/query :file {:id file-id})
                    (rp/query :file-users {:id file-id})
                    (rp/query :project-by-id {:project-id project-id})
-                   (rp/query :pages {:file-id file-id})
                    (rp/query :media-objects {:file-id file-id :is-local false})
-                   (rp/query :colors {:file-id file-id})
                    (rp/query :file-libraries {:file-id file-id}))
            (rx/first)
-           (rx/mapcat
-             (fn [bundle]
-               (->> (fetch-libraries-content (get bundle 6))
-                    (rx/map (fn [[lib-media-objects lib-colors]]
-                              (conj bundle lib-media-objects lib-colors))))))
-           (rx/map (fn [bundle]
-                     (apply bundle-fetched bundle)))
+           (rx/map (fn [bundle] (apply bundle-fetched bundle)))
            (rx/catch (fn [{:keys [type code] :as error}]
                        (cond
                          (= :not-found type)
@@ -172,76 +164,62 @@
                          :else
                          (throw error))))))))
 
-(defn- fetch-libraries-content
-  [libraries]
-  (if (empty? libraries)
-    (rx/of [{} {}])
-    (rx/zip
-      (->> ;; fetch media-objects list of each library, and concatenate in a sequence
-           (apply rx/zip (for [library libraries]
-                           (->> (rp/query :media-objects {:file-id (:id library)
-                                                          :is-local false})
-                                (rx/map (fn [media-objects]
-                                          [(:id library) media-objects])))))
+;; (defn- fetch-libraries-content
+;;   [libraries]
+;;   (if (empty? libraries)
+;;     (rx/of [{} {}])
+;;     (rx/zip
+;;       (->> ;; fetch media-objects list of each library, and concatenate in a sequence
+;;            (apply rx/zip (for [library libraries]
+;;                            (->> (rp/query :media-objects {:file-id (:id library)
+;;                                                           :is-local false})
+;;                                 (rx/map (fn [media-objects]
+;;                                           [(:id library) media-objects])))))
 
-           ;; reorganize the sequence as a map {library-id -> media-objects}
-           (rx/map (fn [media-list]
-                     (reduce (fn [result, [library-id media-objects]]
-                               (assoc result library-id media-objects))
-                             {}
-                             media-list))))
+;;            ;; reorganize the sequence as a map {library-id -> media-objects}
+;;            (rx/map (fn [media-list]
+;;                      (reduce (fn [result, [library-id media-objects]]
+;;                                (assoc result library-id media-objects))
+;;                              {}
+;;                              media-list))))
 
-      (->> ;; fetch colorss list of each library, and concatenate in a vector
-           (apply rx/zip (for [library libraries]
-                           (->> (rp/query :colors {:file-id (:id library)})
-                                (rx/map (fn [colors]
-                                          [(:id library) colors])))))
+;;       (->> ;; fetch colorss list of each library, and concatenate in a vector
+;;            (apply rx/zip (for [library libraries]
+;;                            (->> (rp/query :colors {:file-id (:id library)})
+;;                                 (rx/map (fn [colors]
+;;                                           [(:id library) colors])))))
 
-           ;; reorganize the sequence as a map {library-id -> colors}
-           (rx/map (fn [colors-list]
-                     (reduce (fn [result, [library-id colors]]
-                               (assoc result library-id colors))
-                             {}
-                             colors-list)))))))
+;;            ;; reorganize the sequence as a map {library-id -> colors}
+;;            (rx/map (fn [colors-list]
+;;                      (reduce (fn [result, [library-id colors]]
+;;                                (assoc result library-id colors))
+;;                              {}
+;;                              colors-list)))))))
 
 (defn- bundle-fetched
-  [file users project pages media-objects colors libraries lib-media-objects lib-colors]
+  [file users project media-objects libraries]
   (ptk/reify ::bundle-fetched
     IDeref
     (-deref [_]
       {:file file
        :users users
        :project project
-       :pages pages
        :media-objects media-objects
-       :colors colors
        :libraries libraries})
 
     ptk/UpdateEvent
     (update [_ state]
-      (let [assoc-page
-            #(assoc-in %1 [:workspace-pages (:id %2)] %2)
-
-            assoc-media-objects
-            #(assoc-in %1 [:workspace-libraries %2 :media-objects]
-                       (get lib-media-objects %2))
-
-            assoc-colors
-            #(assoc-in %1 [:workspace-libraries %2 :colors]
-                       (get lib-colors %2))]
-
-        (as-> state $$
-          (assoc $$
-                 :workspace-file (assoc file
-                                        :media-objects media-objects
-                                        :colors colors)
-                 :workspace-users (d/index-by :id users)
-                 :workspace-pages {}
-                 :workspace-project project
-                 :workspace-libraries (d/index-by :id libraries))
-          (reduce assoc-media-objects $$ (keys lib-media-objects))
-          (reduce assoc-colors $$ (keys lib-colors))
-          (reduce assoc-page $$ pages))))))
+      (as-> state $$
+        (assoc $$
+               :workspace-project project
+               :workspace-file file
+               :workspace-data (:data file)
+               :workspace-media-objects media-objects
+               :workspace-users (d/index-by :id users)
+               :workspace-libraries (d/index-by :id libraries))
+        #_(reduce assoc-media-objects $$ (keys lib-media-objects))
+        #_(reduce assoc-colors $$ (keys lib-colors))
+        #_(reduce assoc-page $$ pages)))))
 
 
 ;; --- Set File shared

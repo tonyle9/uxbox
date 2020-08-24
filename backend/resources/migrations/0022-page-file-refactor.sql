@@ -35,4 +35,3 @@ CREATE TRIGGER file_on_update_tgr
 BEFORE UPDATE ON file
    FOR EACH ROW EXECUTE PROCEDURE handle_file_update();
 
-DROP TABLE page;

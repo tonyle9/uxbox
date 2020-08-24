@@ -164,7 +164,9 @@
                   (core/concat acc (map (partial join-fn (first col1)) col2))))))
 
 
-(def sentinel (Object.))
+(def sentinel
+  #?(:clj (Object.)
+     :cljs (js/Object.)))
 
 (defn update-in-when
   [m key-seq f & args]

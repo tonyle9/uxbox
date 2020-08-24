@@ -120,17 +120,20 @@
       (rx/merge
        (rx/of (dwp/fetch-bundle project-id file-id))
 
+       ;; Initialize notifications (websocket connection)
        (->> stream
             (rx/filter (ptk/type? ::dwp/bundle-fetched))
             (rx/mapcat (fn [_] (rx/of (dwn/initialize file-id))))
             (rx/first))
 
+       ;; Initialize Indexes (webworker)
        (->> stream
             (rx/filter (ptk/type? ::dwp/bundle-fetched))
             (rx/map deref)
             (rx/map dwc/setup-selection-index)
             (rx/first))
 
+       ;; Mark file initialized when indexes are ready
        (->> stream
             (rx/filter #(= ::dwc/index-initialized %))
             (rx/map (constantly
@@ -152,29 +155,29 @@
   (ptk/reify ::finalize
     ptk/UpdateEvent
     (update [_ state]
-      (dissoc state :workspace-file :workspace-project))
+      (dissoc state :workspace-file :workspace-project :workspace-media-objects :workspace-users))
 
     ptk/WatchEvent
     (watch [_ state stream]
       (rx/of (dwn/finalize file-id)))))
 
 
+;; TODO: we need to refactor this, workspace-data and workspace-page now are the same object
 (defn initialize-page
   [page-id]
   (ptk/reify ::initialize-page
     ptk/UpdateEvent
     (update [_ state]
-      (let [page  (get-in state [:workspace-pages page-id])
+      (let [page  (get-in state [:workspace-data :pages-index page-id])
             local (get-in state [:workspace-cache page-id] workspace-local-default)]
         (-> state
             (assoc :current-page-id page-id   ; mainly used by events
                    :workspace-local local
-                   :workspace-page  (dissoc page :data))
-            (assoc-in [:workspace-data page-id] (:data page)))))
+                   :workspace-page (dissoc page :objects)))))
 
     ptk/WatchEvent
     (watch [_ state stream]
-      (rx/of (dwp/initialize-page-persistence page-id)))))
+      #_(rx/of (dwp/initialize-page-persistence page-id)))))
 
 (defn finalize-page
   [page-id]
@@ -185,7 +188,7 @@
       (let [local (:workspace-local state)]
         (-> state
             (assoc-in [:workspace-cache page-id] local)
-            (update :workspace-data dissoc page-id))))
+            (dissoc :workspace-page))))
 
     ptk/WatchEvent
     (watch [_ state stream]
@@ -398,6 +401,7 @@
     ptk/UpdateEvent
     (update [_ state]
       (let [page-id (get-in state [:workspace-page :id])
+            ;; objects (get-in state [:workspace-data :pages-index page-id :objects])
             objects (get-in state [:workspace-data page-id :objects])
             shapes  (cph/select-toplevel-shapes objects {:include-frames? true})
             srect   (geom/selection-rect shapes)]

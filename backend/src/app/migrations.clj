@@ -100,6 +100,10 @@
     {:desc "Improve http session tables"
      :name "0021-http-session-improvements"
      :fn (mg/resource "migrations/0021-http-session-improvements.sql")}
+
+    {:desc "Refactor pages and files"
+     :name "0022-page-file-refactor"
+     :fn (mg/resource "migrations/0022-page-file-refactor.sql")}
     ]})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

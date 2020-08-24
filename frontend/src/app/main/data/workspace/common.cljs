@@ -109,14 +109,17 @@
 
 ;; --- Selection Index Handling
 
+
+;; TODO: this need to be refactored
+
 (defn- setup-selection-index
-  [{:keys [file pages] :as bundle}]
+  [{:keys [file] :as bundle}]
   (ptk/reify ::setup-selection-index
     ptk/WatchEvent
     (watch [_ state stream]
       (let [msg {:cmd :create-page-indices
                  :file-id (:id file)
-                 :pages pages}]
+                 :pages (into [] (vals (get file [:data :pages-index])))}]
         (->> (uw/ask! msg)
              (rx/map (constantly ::index-initialized)))))))
 
