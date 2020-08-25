@@ -62,12 +62,12 @@
                              :vport (:vport local)}]
           [:& coordinates]])
 
-       #_[:& viewport {:page page
-                       :page-id (:id page)
-                       :key (:id page)
-                       :file file
-                       :local local
-                       :layout layout}]]]
+       [:& viewport {:page page
+                     :page-id (:id page)
+                     :key (:id page)
+                     :file file
+                     :local local
+                     :layout layout}]]]
 
      [:& left-toolbar {:page page :layout layout}]
 

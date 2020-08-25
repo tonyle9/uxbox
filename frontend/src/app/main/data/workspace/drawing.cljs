@@ -15,6 +15,7 @@
    [app.common.geom.point :as gpt]
    [app.common.geom.shapes :as geom]
    [app.common.pages :as cp]
+   [app.common.uuid :as uuid]
    [app.common.pages-helpers :as cph]
    [app.common.uuid :as uuid]
    [app.main.data.workspace :as dw]
@@ -29,10 +30,14 @@
 (declare handle-finish-drawing)
 (declare conditional-align)
 
+;; NOTE/TODO: when an exception is raised in some point of drawing the
+;; draw lock is not released so the user need to refresh in order to
+;; be able draw again. THIS NEED TO BE REVISITED
+
 (defn start-drawing
   [type]
   {:pre [(keyword? type)]}
-  (let [id (gensym "drawing")]
+  (let [id (uuid/next)]
     (ptk/reify ::start-drawing
       ptk/UpdateEvent
       (update [_ state]
@@ -41,13 +46,11 @@
       ptk/WatchEvent
       (watch [_ state stream]
         (let [lock (get-in state [:workspace-local :drawing-lock])]
-          (if (= lock id)
-            (rx/merge
-             (->> (rx/filter #(= % handle-finish-drawing) stream)
-                  (rx/take 1)
-                  (rx/map (fn [_] #(update % :workspace-local dissoc :drawing-lock))))
-             (rx/of (handle-drawing type)))
-            (rx/empty)))))))
+          (when (= lock id)
+            (rx/merge (->> (rx/filter #(= % handle-finish-drawing) stream)
+                           (rx/take 1)
+                           (rx/map (fn [_] #(update % :workspace-local dissoc :drawing-lock))))
+                      (rx/of (handle-drawing type)))))))))
 
 (defn handle-drawing
   [type]

@@ -9,6 +9,7 @@
 
 (ns app.main.ui
   (:require
+   [expound.alpha :as expound]
    [beicon.core :as rx]
    [cuerdas.core :as str]
    [potok.core :as ptk]
@@ -163,9 +164,18 @@
   [error]
   (ts/schedule 0 #(st/emit! logout)))
 
+(defmethod ptk/handle-error :assertion
+  [{:keys [data stack] :as error}]
+  (js/console.error stack)
+  (js/console.error (with-out-str
+                      (expound/printer data))))
+
 (defmethod ptk/handle-error :default
   [error]
-  (js/console.error (if (map? error) (pr-str error) error))
-  (ts/schedule 100 #(st/emit! (dm/show {:content "Something wrong has happened."
-                                        :type :error
-                                        :timeout 5000}))))
+  (if (instance? ExceptionInfo error)
+    (ptk/handle-error (ex-data error))
+    (do
+      (js/console.error (if (map? error) (pr-str error) error))
+      (ts/schedule 100 #(st/emit! (dm/show {:content "Something wrong has happened."
+                                            :type :error
+                                            :timeout 5000}))))))
