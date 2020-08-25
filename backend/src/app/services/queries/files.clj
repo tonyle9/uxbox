@@ -235,7 +235,7 @@
 ;; --- Query: File Libraries used by a File
 
 (def ^:private sql:file-libraries
-  "select fl.*,
+  "select fl.*
      from file as fl
     inner join file_library_rel as flr on (flr.library_file_id = fl.id)
     where flr.file_id = ?

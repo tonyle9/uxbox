@@ -342,7 +342,9 @@
 (defn make-file-data
   []
   (let [id (uuid/next)
-        pd (assoc empty-page-data :id id)]
+        pd (assoc empty-page-data
+                  :id id
+                  :name "Page-1")]
     (-> empty-file-data
         (update :pages conj id)
         (update :pages-index assoc id pd))))

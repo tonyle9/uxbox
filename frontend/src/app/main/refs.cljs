@@ -42,116 +42,8 @@
 (def workspace-local
   (l/derived :workspace-local st/state))
 
-(def workspace-layout
-  (l/derived :workspace-layout st/state))
-
-(def workspace-page
-  (l/derived :workspace-page st/state))
-
-(def workspace-page-id
-  (l/derived :id workspace-page))
-
-(def workspace-file
-  (l/derived :workspace-file st/state))
-
-(def workspace-project
-  (l/derived :workspace-project st/state))
-
-(def workspace-shared-files
-  (l/derived :workspace-shared-files st/state))
-
-(def workspace-libraries
-  (l/derived :workspace-libraries st/state))
-
-(def workspace-users
-  (l/derived :workspace-users st/state))
-
-(def workspace-presence
-  (l/derived :workspace-presence st/state))
-
-(def workspace-snap-data
-  (l/derived :workspace-snap-data st/state))
-
-(def workspace-data
-  (-> #(let [page-id (get-in % [:workspace-page :id])]
-         (get-in % [:workspace-data page-id]))
-      (l/derived st/state)))
-
-(def workspace-page-options
-  (l/derived :options workspace-data))
-
-(def workspace-saved-grids
-  (l/derived :saved-grids workspace-page-options))
-
-(def workspace-objects
-  (l/derived :objects workspace-data))
-
-(def workspace-frames
-  (l/derived cph/select-frames workspace-objects))
-
-(defn object-by-id
-  [id]
-  (letfn [(selector [state]
-            (let [page-id (get-in state [:workspace-page :id])
-                  objects (get-in state [:workspace-data page-id :objects])]
-              (get objects id)))]
-    (l/derived selector st/state =)))
-
-(defn objects-by-id
-  [ids]
-  (letfn [(selector [state]
-            (let [page-id (get-in state [:workspace-page :id])
-                  objects (get-in state [:workspace-data page-id :objects])]
-              (->> (set ids)
-                   (map #(get objects %))
-                   (filter identity)
-                   (vec))))]
-    (l/derived selector st/state =)))
-
-(defn is-child-selected?
-  [id]
-  (letfn [(selector [state]
-            (let [page-id  (get-in state [:workspace-page :id])
-                  objects  (get-in state [:workspace-data page-id :objects])
-                  selected (get-in state [:workspace-local :selected])
-                  shape    (get objects id)
-                  children (cph/get-children id objects)]
-              (some selected children)))]
-    (l/derived selector st/state)))
-
 (def selected-shapes
   (l/derived :selected workspace-local))
-
-(def selected-objects
-  (letfn [(selector [state]
-           (let [selected (get-in state [:workspace-local :selected])
-                 page-id (get-in state [:workspace-page :id])
-                 objects (get-in state [:workspace-data page-id :objects])]
-             (mapv #(get objects %) selected)))]
-    (l/derived selector st/state =)))
-
-(def selected-shapes-with-children
-  (letfn [(selector [state]
-            (let [selected (get-in state [:workspace-local :selected])
-                  page-id (get-in state [:workspace-page :id])
-                  objects (get-in state [:workspace-data page-id :objects])
-                  children (mapcat #(cph/get-children % objects) selected)]
-              (into selected children)))]
-    (l/derived selector st/state)))
-
-(def selected-objects-with-children
-  (letfn [(selector [state]
-            (let [selected (get-in state [:workspace-local :selected])
-                  page-id (get-in state [:workspace-page :id])
-                  objects (get-in state [:workspace-data page-id :objects])
-                  children (mapcat #(cph/get-children % objects) selected)
-                  accumulated (into selected children)]
-              (mapv #(get objects %) accumulated)))]
-    (l/derived selector st/state)))
-
-(defn make-selected
-  [id]
-  (l/derived #(contains? % id) selected-shapes))
 
 (def selected-zoom
   (l/derived :zoom workspace-local))
@@ -176,6 +68,116 @@
 
 (def current-hover
   (l/derived :hover workspace-local))
+
+
+(def workspace-layout
+  (l/derived :workspace-layout st/state))
+
+(def workspace-file
+  (l/derived (fn [state]
+               (when-let [file (:workspace-file state)]
+                 (-> file
+                     (dissoc :data)
+                     (assoc :pages (get-in file [:data :pages])))))
+             st/state =))
+
+(def workspace-project
+  (l/derived :workspace-project st/state))
+
+(def workspace-shared-files
+  (l/derived :workspace-shared-files st/state))
+
+(def workspace-libraries
+  (l/derived :workspace-libraries st/state))
+
+(def workspace-users
+  (l/derived :workspace-users st/state))
+
+(def workspace-presence
+  (l/derived :workspace-presence st/state))
+
+(def workspace-snap-data
+  (l/derived :workspace-snap-data st/state))
+
+;; TODO: BROKEN  & TO BE REMOVED
+(def workspace-data
+  (-> #(let [page-id (get-in % [:workspace-page :id])]
+         (get-in % [:workspace-data page-id]))
+      (l/derived st/state)))
+
+(def workspace-page
+  (l/derived (fn [state]
+               (let [page-id (:current-page-id state)
+                     data    (:workspace-data state)]
+                 (get-in data [:pages-index page-id])))
+             st/state))
+
+(def workspace-page-objects
+  (l/derived :objects workspace-page))
+
+(def workspace-page-options
+  (l/derived :options workspace-page))
+
+;; TODO: revisit
+(def workspace-saved-grids
+  (l/derived :saved-grids workspace-page-options))
+
+(def workspace-frames
+  (l/derived cph/select-frames workspace-page-objects))
+
+(defn object-by-id
+  [id]
+  (l/derived #(get % id) workspace-page-objects))
+
+(defn objects-by-id
+  [ids]
+  (l/derived (fn [objects]
+               (into [] (comp (map #(get objects %))
+                              (filter identity))
+                     (set ids)))
+             workspace-page-objects =))
+
+(defn is-child-selected?
+  [id]
+  (letfn [(selector [state]
+            (let [page-id  :current-page-id
+                  objects  (get-in state [:workspace-data :pages-index page-id :objects])
+                  selected (get-in state [:workspace-local :selected])
+                  shape    (get objects id)
+                  children (cph/get-children id objects)]
+              (some selected children)))]
+    (l/derived selector st/state)))
+
+
+;; TODO: can be replaced by objects-by-id
+(def selected-objects
+  (letfn [(selector [state]
+            (let [selected (get-in state [:workspace-local :selected])
+                  page-id  (get-in state [:workspace-page :id])
+                  objects  (get-in state [:workspace-data :pages-index page-id :objects])]
+              (mapv #(get objects %) selected)))]
+    (l/derived selector st/state =)))
+
+(def selected-shapes-with-children
+  (letfn [(selector [state]
+            (let [selected (get-in state [:workspace-local :selected])
+                  page-id  (get-in state [:workspace-page :id])
+                  objects  (get-in state [:workspace-data :pages-index page-id :objects])
+                  children (mapcat #(cph/get-children % objects) selected)]
+              (into selected children)))]
+    (l/derived selector st/state =)))
+
+
+;; TODO: looks very inneficient access method, revisit the usage of this ref
+(def selected-objects-with-children
+  (letfn [(selector [state]
+            (let [selected (get-in state [:workspace-local :selected])
+                  page-id  (get-in state [:workspace-page :id])
+                  objects  (get-in state [:workspace-data :pages-index page-id :objects])
+                  children (mapcat #(cph/get-children % objects) selected)
+                  shapes   (into selected children)]
+              (mapv #(get objects %) shapes)))]
+    (l/derived selector st/state =)))
 
 ;; ---- Viewer refs
 

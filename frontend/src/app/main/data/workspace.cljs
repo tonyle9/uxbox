@@ -9,12 +9,12 @@
 
 (ns app.main.data.workspace
   (:require
-   [beicon.core :as rx]
-   [cljs.spec.alpha :as s]
-   [clojure.set :as set]
-   [potok.core :as ptk]
    [app.common.data :as d]
    [app.common.exceptions :as ex]
+   [app.common.geom.matrix :as gmt]
+   [app.common.geom.point :as gpt]
+   [app.common.geom.shapes :as geom]
+   [app.common.math :as mth]
    [app.common.pages :as cp]
    [app.common.pages-helpers :as cph]
    [app.common.spec :as us]
@@ -24,21 +24,21 @@
    [app.main.data.workspace.common :as dwc]
    [app.main.data.workspace.notifications :as dwn]
    [app.main.data.workspace.persistence :as dwp]
+   [app.main.data.workspace.selection :as dws]
    [app.main.data.workspace.texts :as dwtxt]
    [app.main.data.workspace.transforms :as dwt]
-   [app.main.data.workspace.selection :as dws]
    [app.main.repo :as rp]
    [app.main.store :as st]
    [app.main.streams :as ms]
    [app.main.worker :as uw]
-   [app.common.geom.matrix :as gmt]
-   [app.common.geom.point :as gpt]
-   [app.common.geom.shapes :as geom]
-   [app.common.math :as mth]
-   [app.util.timers :as ts]
    [app.util.router :as rt]
+   [app.util.timers :as ts]
    [app.util.transit :as t]
-   [app.util.webapi :as wapi]))
+   [app.util.webapi :as wapi]
+   [beicon.core :as rx]
+   [cljs.spec.alpha :as s]
+   [clojure.set :as set]
+   [potok.core :as ptk]))
 
 ;; --- Specs
 
@@ -173,7 +173,8 @@
         (-> state
             (assoc :current-page-id page-id   ; mainly used by events
                    :workspace-local local
-                   :workspace-page (dissoc page :objects)))))
+                   ;; :workspace-page (dissoc page :objects)
+                   ))))
 
     ptk/WatchEvent
     (watch [_ state stream]

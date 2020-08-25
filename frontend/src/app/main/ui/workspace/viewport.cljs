@@ -157,7 +157,7 @@
                          :hover hover}]]))
 
 (mf/defc viewport
-  [{:keys [page local layout] :as props}]
+  [{:keys [page page-id local layout] :as props}]
   (let [{:keys [drawing-tool
                 options-mode
                 zoom
@@ -483,10 +483,14 @@
                        :transform (:transform local)
                        :drawing (:drawing local)
                        :zoom zoom
-                       :page-id (:id page)
+                       :page-id page-id
                        :selected selected}]
 
-      [:& snap-distances {:layout layout}]
+      [:& snap-distances {:layout layout
+                          :zoom zoom
+                          :transform (:transform local)
+                          :selected selected
+                          :page-id page-id}]
 
       (when tooltip
         [:& cursor-tooltip {:zoom zoom :tooltip tooltip}])]
