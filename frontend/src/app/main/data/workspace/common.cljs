@@ -48,17 +48,16 @@
 
      ptk/UpdateEvent
      (update [_ state]
-       (let [page-id (:current-page-id state)
-             state (update-in state [:workspace-pages page-id :data] cp/process-changes changes)]
+       (let [state (update-in state [:workspace-file :data] cp/process-changes changes)]
          (cond-> state
-           commit-local? (update-in [:workspace-data page-id] cp/process-changes changes))))
+           commit-local? (update :workspace-data cp/process-changes changes))))
 
      ptk/WatchEvent
      (watch [_ state stream]
-       (let [page (:workspace-page state)
-             uidx (get-in state [:workspace-local :undo-index] ::not-found)]
-         (rx/concat
-          (rx/of (update-page-indices (:id page)))
+       (let [page-id (:current-page-id state)
+             uidx    (get-in state [:workspace-local :undo-index] ::not-found)]
+         #_(rx/concat
+          (rx/of (update-page-indices page-id))
 
           (when (and save-undo? (not= uidx ::not-found))
             (rx/of (reset-undo uidx)))
@@ -123,14 +122,14 @@
         (->> (uw/ask! msg)
              (rx/map (constantly ::index-initialized)))))))
 
+;; TODO: this need to be refactored
 
 (defn update-page-indices
   [page-id]
   (ptk/reify ::update-page-indices
     ptk/EffectEvent
     (effect [_ state stream]
-      (let [objects (get-in state [:workspace-pages page-id :data :objects])
-            lookup  #(get objects %)]
+      (let [objects (cph/lookup-page-objects state page-id)]
         (uw/ask! {:cmd :update-page-indices
                   :page-id page-id
                   :objects objects})))))
@@ -146,7 +145,7 @@
     (or (:id frame) uuid/zero)))
 
 (defn- calculate-shape-to-frame-relationship-changes
-  [frames shapes]
+  [page-id frames shapes]
   (loop [shape  (first shapes)
          shapes (rest shapes)
          rch    []
@@ -158,9 +157,11 @@
           (recur (first shapes)
                  (rest shapes)
                  (conj rch {:type :mov-objects
+                            :page-id page-id
                             :parent-id fid
                             :shapes [(:id shape)]})
                  (conj uch {:type :mov-objects
+                            :page-id page-id
                             :parent-id (:frame-id shape)
                             :shapes [(:id shape)]}))
           (recur (first shapes)
@@ -174,12 +175,12 @@
     ptk/WatchEvent
     (watch [_ state stream]
       (let [page-id (get-in state [:workspace-page :id])
-            objects (get-in state [:workspace-data page-id :objects])
+            objects (cph/lookup-page-objects state page-id)
 
             shapes (cph/select-toplevel-shapes objects)
             frames (cph/select-frames objects)
 
-            [rch uch] (calculate-shape-to-frame-relationship-changes frames shapes)]
+            [rch uch] (calculate-shape-to-frame-relationship-changes page-id frames shapes)]
         (when-not (empty? rch)
           (rx/of (commit-changes rch uch {:commit-local? true})))))))
 
@@ -187,9 +188,7 @@
 (defn get-frame-at-point
   [objects point]
   (let [frames (cph/select-frames objects)]
-    (loop [frame (first frames)
-           rest (rest frames)]
-      (d/seek #(geom/has-point? % point) frames))))
+    (d/seek #(geom/has-point? % point) frames)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -217,7 +216,7 @@
     (update [_ state]
       (let [page-id (:current-page-id state)]
         (-> state
-            (update-in [:workspace-data page-id] cp/process-changes changes)
+            (update :workspace-data cp/process-changes changes)
             (assoc-in [:workspace-local :undo-index] index))))))
 
 (defn- reset-undo
@@ -244,7 +243,7 @@
     ptk/WatchEvent
     (watch [_ state stream]
       (let [local (:workspace-local state)
-            undo (:undo local [])
+            undo  (:undo local [])
             index (or (:undo-index local)
                       (dec (count undo)))]
         (when-not (or (empty? undo) (= index -1))
@@ -304,23 +303,25 @@
      ptk/WatchEvent
      (watch [_ state stream]
       (let [page-id (:current-page-id state)
-            objects (get-in state [:workspace-data page-id :objects])]
+            objects (cph/lookup-page-objects state page-id)]
         (loop [ids (seq ids)
                rch []
                uch []]
           (if (nil? ids)
             (rx/of (commit-changes
-                    (cond-> rch reg-objects? (conj {:type :reg-objects :shapes (vec ids)}))
-                    (cond-> uch reg-objects? (conj {:type :reg-objects :shapes (vec ids)}))
+                    (cond-> rch reg-objects? (conj {:type :reg-objects :page-id page-id :shapes (vec ids)}))
+                    (cond-> uch reg-objects? (conj {:type :reg-objects :page-id page-id :shapes (vec ids)}))
                     {:commit-local? true}))
 
             (let [id   (first ids)
                   obj1 (get objects id)
                   obj2 (f obj1)
                   rchg {:type :mod-obj
+                        :page-id page-id
                         :operations (generate-operations obj1 obj2)
                         :id id}
                   uchg {:type :mod-obj
+                        :page-id page-id
                         :operations (generate-operations obj2 obj1)
                         :id id}]
               (recur (next ids)
@@ -335,7 +336,7 @@
   (letfn [(impl-get-children [objects id]
             (cons id (cph/get-children id objects)))
 
-          (impl-gen-changes [objects ids]
+          (impl-gen-changes [objects page-id ids]
             (loop [sids (seq ids)
                    cids (seq (impl-get-children objects (first sids)))
                    rchanges []
@@ -357,9 +358,11 @@
                       rops (generate-operations obj1 obj2)
                       uops (generate-operations obj2 obj1)
                       rchg {:type :mod-obj
+                            :page-id page-id
                             :operations rops
                             :id id}
                       uchg {:type :mod-obj
+                            :page-id page-id
                             :operations uops
                             :id id}]
                   (recur sids
@@ -369,10 +372,7 @@
     (ptk/reify ::update-shapes-recursive
       ptk/WatchEvent
       (watch [_ state stream]
-        (let [page-id  (get-in state [:workspace-page :id])
-              objects  (get-in state [:workspace-data page-id :objects])
-              [rchanges uchanges] (impl-gen-changes objects (seq ids))]
+        (let [page-id  (:current-page-id state)
+              objects  (cph/lookup-page-objects state page-id)
+              [rchanges uchanges] (impl-gen-changes objects page-id (seq ids))]
         (rx/of (commit-changes rchanges uchanges {:commit-local? true})))))))
-
-
-

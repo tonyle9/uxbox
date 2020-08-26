@@ -116,6 +116,8 @@
 
 (declare remote-user-cursors)
 
+
+;; TODO: revisit the refs usage (vs props)
 (mf/defc shape-outlines
   {::mf/wrap-props false}
   [props]
@@ -135,13 +137,13 @@
   {::mf/wrap [mf/memo]
    ::mf/wrap-props false}
   [props]
-  (let [data     (mf/deref refs/workspace-data)
+  (let [data     (mf/deref refs/workspace-page)
         hover    (unchecked-get props "hover")
         selected (unchecked-get props "selected")
-        objects (:objects data)
-        root    (get objects uuid/zero)
-        shapes  (->> (:shapes root)
-                     (map #(get objects %)))]
+        objects  (:objects data)
+        root     (get objects uuid/zero)
+        shapes   (->> (:shapes root)
+                      (map #(get objects %)))]
     [:*
      [:g.shapes
       (for [item shapes]

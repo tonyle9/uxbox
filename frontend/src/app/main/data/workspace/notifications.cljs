@@ -26,6 +26,8 @@
    [app.util.transit :as t]
    [app.util.websockets :as ws]))
 
+;; TODO: this module need to be revisited.
+
 (declare handle-presence)
 (declare handle-pointer-update)
 (declare handle-page-change)
@@ -170,7 +172,7 @@
   (ptk/reify ::handle-page-change
     ptk/WatchEvent
     (watch [_ state stream]
-      (rx/of (dwp/shapes-changes-persisted msg)
+      #_(rx/of (dwp/shapes-changes-persisted msg)
              (dwc/update-page-indices (:page-id msg))))))
 
 

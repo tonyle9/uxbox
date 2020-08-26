@@ -35,17 +35,13 @@
 
 ;; --- Persistence
 
-(defn initialize-page-persistence
-  [page-id]
+(defn initialize-file-persistence
+  [file-id]
   (letfn [(enable-reload-stoper []
             (obj/set! js/window "onbeforeunload" (constantly false)))
           (disable-reload-stoper []
             (obj/set! js/window "onbeforeunload" nil))]
     (ptk/reify ::initialize-persistence
-      ptk/UpdateEvent
-      (update [_ state]
-        (assoc state :current-page-id page-id))
-
       ptk/WatchEvent
       (watch [_ state stream]
         (let [stoper   (rx/filter #(= ::finalize %) stream)
@@ -61,7 +57,7 @@
                 (rx/buffer-until notifier)
                 (rx/map vec)
                 (rx/filter (complement empty?))
-                (rx/map #(persist-changes page-id %))
+                (rx/map #(persist-changes file-id %))
                 (rx/take-until (rx/delay 100 stoper)))
            (->> stream
                 (rx/filter (ptk/type? ::changes-persisted))
@@ -70,40 +66,44 @@
                 (rx/take-until stoper))))))))
 
 (defn persist-changes
-  [page-id changes]
+  [file-id changes]
   (ptk/reify ::persist-changes
     ptk/WatchEvent
     (watch [_ state stream]
       (let [sid     (:session-id state)
-            page    (get-in state [:workspace-pages page-id])
-            changes (into [] (mapcat identity) changes)
-            params  {:id (:id page)
-                     :revn (:revn page)
-                     :session-id sid
-                     :changes changes}]
-        (->> (rp/mutation :update-page params)
-             (rx/map (fn [lagged]
-                       (if (= #{sid} (into #{} (map :session-id) lagged))
-                         (map #(assoc % :changes []) lagged)
-                         lagged)))
-             (rx/mapcat seq)
-             (rx/map shapes-changes-persisted))))))
+            file    (:workspace-file state)]
+        (when (= (:id file) file-id)
+          (let [changes (into [] (mapcat identity) changes)
+                params  {:id (:id file)
+                         :revn (:revn file)
+                         :session-id sid
+                         :changes changes}]
+            (->> (rp/mutation :update-file params)
+                 (rx/map (fn [lagged]
+                           (if (= #{sid} (into #{} (map :session-id) lagged))
+                             (map #(assoc % :changes []) lagged)
+                             lagged)))
+                 (rx/mapcat seq)
+                 (rx/map #(shapes-changes-persisted file-id %)))))))))
 
 (s/def ::shapes-changes-persisted
-  (s/keys :req-un [::page-id ::revn ::cp/changes]))
+  (s/keys :req-un [::revn ::cp/changes]))
 
 (defn shapes-changes-persisted
-  [{:keys [page-id revn changes] :as params}]
+  [file-id {:keys [revn changes] :as params}]
+  (us/verify ::us/uuid file-id)
   (us/verify ::shapes-changes-persisted params)
   (ptk/reify ::changes-persisted
     ptk/UpdateEvent
     (update [_ state]
       (let [sid   (:session-id state)
-            page  (get-in state [:workspace-pages page-id])
-            state (update-in state [:workspace-pages page-id :revn] #(max % revn))]
-        (-> state
-            (update-in [:workspace-data page-id] cp/process-changes changes)
-            (update-in [:workspace-pages page-id :data] cp/process-changes changes))))))
+            file  (:workspace-file state)]
+        (if (= file-id (:id file))
+          (let [state (update-in state [:workspace-file :revn] #(max % revn))]
+            (-> state
+                (update :workspace-data cp/process-changes changes)
+                (update-in [:workspace-file :data] cp/process-changes changes)))
+          state)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -391,6 +391,7 @@
 (declare purge-page)
 (declare go-to-file)
 
+;; TODO: broken,  go-to-file is defined in other ns
 (defn delete-page
   [id]
   {:pre [(uuid? id)]}

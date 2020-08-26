@@ -113,3 +113,17 @@
                      (lazy-seq (loopfn (rest ids))))))]
     (loopfn (:shapes root))))
 
+(defn lookup-page-objects
+  ([state]
+   (lookup-page-objects state (:current-page-id state)))
+  ([state page-id]
+   (get-in state [:workspace-data :pages-index page-id :objects])))
+
+(defn lookup-page-options
+  ([state]
+   (lookup-page-options state (:current-page-id state)))
+  ([state page-id]
+   (get-in state [:workspace-data :pages-index page-id :options])))
+
+
+

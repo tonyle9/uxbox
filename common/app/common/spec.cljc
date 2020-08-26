@@ -110,7 +110,7 @@
     x
     (ex/raise :type :assertion
               :data (s/explain-data spec x)
-              :stack (.-stack (js/Error. "assertion")))))
+              #?@(:cljs [:stack (.-stack (ex-info "assertion" {}))]))))
 
 (defmacro assert
   "Development only assertion macro."
