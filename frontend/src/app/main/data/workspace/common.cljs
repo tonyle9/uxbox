@@ -92,7 +92,7 @@
          result)))))
 
 (defn generate-changes
-  [objects1 objects2]
+  [page-id objects1 objects2]
   (letfn [(impl-diff [res id]
             (let [obj1 (get objects1 id)
                   obj2 (get objects2 id)
@@ -101,6 +101,7 @@
               (if (empty? ops)
                 res
                 (conj res {:type :mod-obj
+                           :page-id page-id
                            :operations ops
                            :id id}))))]
     (reduce impl-diff [] (set/union (set (keys objects1))
