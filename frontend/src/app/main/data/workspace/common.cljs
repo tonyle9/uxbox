@@ -25,7 +25,7 @@
 ;; --- Protocols
 
 (declare setup-selection-index)
-(declare update-page-indices)
+(declare update-indices)
 (declare reset-undo)
 (declare append-undo)
 
@@ -55,13 +55,14 @@
      (watch [_ state stream]
        (let [page-id (:current-page-id state)
              uidx    (get-in state [:workspace-local :undo-index] ::not-found)]
-         #_(rx/concat
-          (rx/of (update-page-indices page-id))
+         (rx/concat
+          (when (some :page-id changes)
+            (rx/of (update-indices page-id)))
 
-          (when (and save-undo? (not= uidx ::not-found))
+          #_(when (and save-undo? (not= uidx ::not-found))
             (rx/of (reset-undo uidx)))
 
-          (when save-undo?
+          #_(when save-undo?
             (let [entry {:undo-changes undo-changes
                          :redo-changes changes}]
               (rx/of (append-undo entry))))))))))
@@ -108,23 +109,18 @@
 
 ;; --- Selection Index Handling
 
-
-;; TODO: this need to be refactored
-
-(defn- setup-selection-index
+(defn initialize-indices
   [{:keys [file] :as bundle}]
   (ptk/reify ::setup-selection-index
     ptk/WatchEvent
     (watch [_ state stream]
-      (let [msg {:cmd :create-page-indices
+      (let [msg {:cmd :initialize-indices
                  :file-id (:id file)
-                 :pages (into [] (vals (get file [:data :pages-index])))}]
+                 :data (:data file)}]
         (->> (uw/ask! msg)
              (rx/map (constantly ::index-initialized)))))))
 
-;; TODO: this need to be refactored
-
-(defn update-page-indices
+(defn update-indices
   [page-id]
   (ptk/reify ::update-page-indices
     ptk/EffectEvent

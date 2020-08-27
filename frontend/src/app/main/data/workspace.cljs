@@ -131,7 +131,7 @@
        (->> stream
             (rx/filter (ptk/type? ::dwp/bundle-fetched))
             (rx/map deref)
-            (rx/map dwc/setup-selection-index)
+            (rx/map dwc/initialize-indices)
             (rx/first))
 
        ;; Mark file initialized when indexes are ready

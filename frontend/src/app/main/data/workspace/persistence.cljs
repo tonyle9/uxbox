@@ -31,7 +31,6 @@
    [potok.core :as ptk]))
 
 (declare persist-changes)
-(declare update-selection-index)
 (declare shapes-changes-persisted)
 
 ;; --- Persistence

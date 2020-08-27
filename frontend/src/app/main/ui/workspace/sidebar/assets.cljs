@@ -9,35 +9,35 @@
 
 (ns app.main.ui.workspace.sidebar.assets
   (:require
-   [okulary.core :as l]
-   [cuerdas.core :as str]
-   [rumext.alpha :as mf]
-   [app.config :as cfg]
    [app.common.data :as d]
+   [app.common.geom.point :as gpt]
+   [app.common.geom.shapes :as geom]
    [app.common.media :as cm]
    [app.common.pages :as cp]
-   [app.common.geom.shapes :as geom]
-   [app.common.geom.point :as gpt]
-   [app.main.ui.icons :as i]
-   [app.main.data.workspace :as dw]
+   [app.common.uuid :as uuid]
+   [app.config :as cfg]
    [app.main.data.colors :as dcol]
+   [app.main.data.workspace :as dw]
    [app.main.refs :as refs]
    [app.main.store :as st]
+   [app.main.ui.colorpicker :refer [colorpicker most-used-colors]]
+   [app.main.ui.components.context-menu :refer [context-menu]]
+   [app.main.ui.components.file-uploader :refer [file-uploader]]
+   [app.main.ui.components.tab-container :refer [tab-container tab-element]]
+   [app.main.ui.icons :as i]
    [app.main.ui.keyboard :as kbd]
+   [app.main.ui.modal :as modal]
    [app.main.ui.shapes.icon :as icon]
+   [app.main.ui.workspace.libraries :refer [libraries-dialog]]
+   [app.util.data :refer [classnames matches-search]]
    [app.util.dom :as dom]
    [app.util.dom.dnd :as dnd]
-   [app.util.timers :as timers]
-   [app.common.uuid :as uuid]
    [app.util.i18n :as i18n :refer [tr]]
-   [app.util.data :refer [classnames matches-search]]
    [app.util.router :as rt]
-   [app.main.ui.modal :as modal]
-   [app.main.ui.colorpicker :refer [colorpicker most-used-colors]]
-   [app.main.ui.components.tab-container :refer [tab-container tab-element]]
-   [app.main.ui.components.file-uploader :refer [file-uploader]]
-   [app.main.ui.components.context-menu :refer [context-menu]]
-   [app.main.ui.workspace.libraries :refer [libraries-dialog]]))
+   [app.util.timers :as timers]
+   [cuerdas.core :as str]
+   [okulary.core :as l]
+   [rumext.alpha :as mf]))
 
 (mf/defc modal-edit-color
   [{:keys [color-value on-accept on-cancel] :as ctx}]
@@ -308,10 +308,8 @@
              [:div.group-title (tr "workspace.assets.not-found")]])]))]))
 
 (mf/defc assets-toolbox
-  []
-  (let [team-id (-> refs/workspace-project mf/deref :team-id)
-        file (mf/deref refs/workspace-file)
-        libraries (mf/deref refs/workspace-libraries)
+  [{:keys [team-id file] :as props}]
+  (let [libraries (mf/deref refs/workspace-libraries)
         sorted-libraries (->> (vals libraries)
                               (sort-by #(str/lower (:name %))))
 

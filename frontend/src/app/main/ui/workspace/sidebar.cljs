@@ -21,7 +21,7 @@
 
 (mf/defc left-sidebar
   {:wrap [mf/memo]}
-  [{:keys [layout page file] :as props}]
+  [{:keys [layout page file project] :as props}]
   [:aside.settings-bar.settings-bar-left
    [:div.settings-bar-inside
     {:data-layout (str/join "," layout)}
@@ -30,11 +30,12 @@
                    :page-id (:id page)
                    :layout layout}])
     #_(when (contains? layout :document-history)
-      [:& history-toolbox])
+        [:& history-toolbox])
     (when (contains? layout :layers)
       [:& layers-toolbox])
-    #_(when (contains? layout :assets)
-      [:& assets-toolbox])]])
+    (when (contains? layout :assets)
+      [:& assets-toolbox {:team-id (:team-id project)
+                          :file file}])]])
 
 ;; --- Right Sidebar (Component)
 

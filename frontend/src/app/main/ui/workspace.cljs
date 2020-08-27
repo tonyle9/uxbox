@@ -76,6 +76,7 @@
        [:& left-sidebar
         {:file file
          :page page
+         :project project
          :layout layout}])
      (when right-sidebar?
        [:& right-sidebar
