@@ -405,9 +405,10 @@
 
     ptk/WatchEvent
     (watch [_ state stream]
-      (rx/of (rt/nav :workspace {:project-id (:project-id data)
-                                 :file-id (:id data)}
-                     {:page-id (first (:pages data))})))))
+      (let [pparams {:project-id (:project-id data)
+                     :file-id (:id data)}
+            qparams {:page-id (get-in data [:data :pages 0])}]
+        (rx/of (rt/nav :workspace pparams qparams))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

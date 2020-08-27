@@ -163,7 +163,8 @@
 
     ptk/WatchEvent
     (watch [_ state stream]
-      (rx/of (dwn/finalize file-id)))))
+      (rx/of (dwn/finalize file-id)
+             ::dwp/finalize))))
 
 
 ;; TODO: we need to refactor this, workspace-data and workspace-page now are the same object
@@ -179,7 +180,6 @@
                :workspace-local local
                )))))
 
-
 (defn finalize-page
   [page-id]
   (us/verify ::us/uuid page-id)
@@ -189,11 +189,67 @@
       (let [local (:workspace-local state)]
         (-> state
             (assoc-in [:workspace-cache page-id] local)
-            (dissoc :workspace-page))))
+            (dissoc :workspace-page))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Workspace Page CRUD
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def create-empty-page
+  (ptk/reify ::create-empty-page
+    ptk/WatchEvent
+    (watch [this state stream]
+      (let [id      (uuid/next)
+            pages   (get-in state [:workspace-data :pages-index])
+            unames  (dwc/retrieve-used-names pages)
+            name    (dwc/generate-unique-name unames "Page")
+
+            rchange {:type :add-page
+                     :id id
+                     :name name}
+            uchange {:type :del-page
+                     :id id}]
+        (rx/of (dwc/commit-changes [rchange] [uchange] {:commit-local? true}))))))
+
+(s/def ::rename-page
+  (s/keys :req-un [::id ::name]))
+
+(defn rename-page
+  [id name]
+  (us/verify ::us/uuid id)
+  (us/verify string? name)
+  (ptk/reify ::rename-page
     ptk/WatchEvent
     (watch [_ state stream]
-      (rx/of ::dwp/finalize))))
+      (let [page (get-in state [:workspace-data :pages-index id])
+            rchg {:type :mod-page
+                  :id id
+                  :name name}
+            uchg {:type :mod-page
+                  :id id
+                  :name (:name page)}]
+        (rx/of (dwc/commit-changes [rchg] [uchg] {:commit-local? true}))))))
+
+(declare purge-page)
+(declare go-to-file)
+
+;; TODO: properly handle positioning on undo.
+
+(defn delete-page
+  [id]
+  (ptk/reify ::delete-page
+    ptk/WatchEvent
+    (watch [_ state s]
+      (let [page (get-in state [:workspace-data :pages-index id])
+            rchg {:type :del-page
+                  :id id}
+            uchg {:type :add-page
+                  :page page}]
+        (rx/of (dwc/commit-changes [rchg] [uchg] {:commit-local? true})
+               (when (= id (:current-page-id state))
+                 go-to-file))))))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Workspace State Manipulation
@@ -439,28 +495,6 @@
 
 ;; --- Add shape to Workspace
 
-(defn- retrieve-used-names
-  [objects]
-  (into #{} (map :name) (vals objects)))
-
-(defn- extract-numeric-suffix
-  [basename]
-  (if-let [[match p1 p2] (re-find #"(.*)-([0-9]+)$" basename)]
-    [p1 (+ 1 (d/parse-integer p2))]
-    [basename 1]))
-
-(defn- generate-unique-name
-  "A unique name generator"
-  [used basename]
-  (s/assert ::set-of-string used)
-  (s/assert ::us/string basename)
-  (let [[prefix initial] (extract-numeric-suffix basename)]
-    (loop [counter initial]
-      (let [candidate (str prefix "-" counter)]
-        (if (contains? used candidate)
-          (recur (inc counter))
-          candidate)))))
-
 (declare start-edition-mode)
 
 (defn add-shape
@@ -475,8 +509,8 @@
             id       (uuid/next)
             shape    (geom/setup-proportions attrs)
 
-            unames   (retrieve-used-names objects)
-            name     (generate-unique-name unames (:name shape))
+            unames   (dwc/retrieve-used-names objects)
+            name     (dwc/generate-unique-name unames (:name shape))
 
             frames   (cph/select-frames objects)
 
@@ -1071,7 +1105,6 @@
         (rx/of (rt/nav :workspace pparams qparams))))))
 
 
-;; TODO: unused
 (def go-to-file
   (ptk/reify ::go-to-file
     ptk/WatchEvent
@@ -1166,7 +1199,7 @@
 
             page-id   (:current-page-id state)
             unames    (-> (cph/lookup-page-objects state page-id)
-                          (retrieve-used-names))
+                          (dwc/retrieve-used-names))
 
             rchanges  (dws/prepare-duplicate-changes objects page-id unames selected delta)
             uchanges  (mapv #(array-map :type :del-obj :page-id page-id :id (:id %))
@@ -1465,9 +1498,6 @@
 (def unlink-file-from-library dwp/unlink-file-from-library)
 (def upload-media-objects dwp/upload-media-objects)
 (def delete-media-object dwp/delete-media-object)
-(def rename-page dwp/rename-page)
-(def delete-page dwp/delete-page)
-(def create-empty-page dwp/create-empty-page)
 
 ;; Selection
 

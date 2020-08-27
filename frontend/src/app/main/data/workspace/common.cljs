@@ -41,7 +41,6 @@
                           :as opts}]
    (us/verify ::cp/changes changes)
    (us/verify ::cp/changes undo-changes)
-
    (ptk/reify ::commit-changes
      cljs.core/IDeref
      (-deref [_] changes)
@@ -191,6 +190,31 @@
   (let [frames (cph/select-frames objects)]
     (d/seek #(geom/has-point? % point) frames)))
 
+
+(defn- extract-numeric-suffix
+  [basename]
+  (if-let [[match p1 p2] (re-find #"(.*)-([0-9]+)$" basename)]
+    [p1 (+ 1 (d/parse-integer p2))]
+    [basename 1]))
+
+(defn retrieve-used-names
+  [objects]
+  (into #{} (map :name) (vals objects)))
+
+(s/def ::set-of-string
+  (s/every string? :kind set?))
+
+(defn generate-unique-name
+  "A unique name generator"
+  [used basename]
+  (s/assert ::set-of-string used)
+  (s/assert ::us/string basename)
+  (let [[prefix initial] (extract-numeric-suffix basename)]
+    (loop [counter initial]
+      (let [candidate (str prefix "-" counter)]
+        (if (contains? used candidate)
+          (recur (inc counter))
+          candidate)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Undo / Redo

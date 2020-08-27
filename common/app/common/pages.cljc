@@ -162,7 +162,9 @@
   (s/map-of uuid? ::shape))
 
 (s/def ::page
-  (s/keys :req-un [::options
+  (s/keys :req-un [::id
+                   ::name
+                   ::options
                    ::objects]))
 
 (s/def ::pages (s/coll-of ::us/uuid :kind vector?))
@@ -211,6 +213,18 @@
 (defmethod change-spec-impl :mov-objects [_]
   (s/keys :req-un [::page-id ::parent-id ::shapes]
           :opt-un [::index]))
+
+(defmethod change-spec-impl :add-page [_]
+  (s/or :empty (s/keys :req-un [::id ::name])
+        :complete (s/keys :req-un [::page])))
+
+(defmethod change-spec-impl :mod-page [_]
+  (s/keys :req-un [::id ::name]))
+
+(defmethod change-spec-impl :del-page [_]
+  (s/keys :req-un [::id]))
+
+
 
 (s/def ::change (s/multi-spec change-spec-impl :type))
 (s/def ::changes (s/coll-of ::change))
@@ -545,89 +559,38 @@
 
     (d/update-in-when data [:pages-index page-id :objects] move-objects)))
 
+(defmethod process-change :add-page
+  [data {:keys [id name page]}]
+  (cond
+    (and (string? name) (uuid? id))
+    (let [page (assoc empty-page-data
+                      :id id
+                      :name name)]
+      (-> data
+          (update :pages conj id)
+          (update :pages-index assoc id page)))
+
+    (map? page)
+    (->> data
+         (update :pages conj (:id page)
+                 (update :pages-index assoc (:id page))))
+
+    :else
+    (ex/raise :type :conflict
+              :hint "name or page should be provided, never both")))
 
 
-  ;; (let [
-  ;;       ;; Check if the move from shape-id -> parent-id is valid
 
-  ;;       is-valid-move
-  ;;       (fn [shape-id]
-  ;;         (let [invalid-targets (cph/calculate-invalid-targets shape-id (:objects data))]
-  ;;           (and (not (invalid-targets parent-id))
-  ;;                (cph/valid-frame-target shape-id parent-id (:objects data)))))
+(defmethod process-change :mod-page
+  [data {:keys [id name]}]
+  (d/update-in-when data [:pages-index id] assoc :name name))
 
-  ;;       valid? (every? is-valid-move shapes)
+(defmethod process-change :del-page
+  [data {:keys [id]}]
+  (-> data
+      (update :pages (fn [pages] (filterv #(not= % id) pages)))
+      (update :pages-index dissoc id)))
 
-  ;;       ;; Add items into the :shapes property of the target parent-id
-  ;;       insert-items
-  ;;       (fn [prev-shapes]
-  ;;         (let [prev-shapes (or prev-shapes [])]
-  ;;           (if index
-  ;;             (cph/insert-at-index prev-shapes index shapes)
-  ;;             (reduce (fn [acc id]
-  ;;                       (if (some #{id} acc)
-  ;;                         acc
-  ;;                         (conj acc id)))
-  ;;                     prev-shapes
-  ;;                     shapes))))
-
-  ;;       strip-id
-  ;;       (fn [id]
-  ;;         (fn [coll] (filterv #(not= % id) coll)))
-
-  ;;       cpindex
-  ;;       (reduce
-  ;;        (fn [index id]
-  ;;          (let [obj (get-in data [:objects id])]
-  ;;            (assoc index id (:parent-id obj))))
-  ;;        {} (keys (:objects data)))
-
-  ;;       remove-from-old-parent
-  ;;       (fn remove-from-old-parent [data shape-id]
-  ;;         (let [prev-parent-id (get cpindex shape-id)]
-  ;;           ;; Do nothing if the parent id of the shape is the same as
-  ;;           ;; the new destination target parent id.
-  ;;           (if (= prev-parent-id parent-id)
-  ;;             data
-  ;;             (loop [sid  shape-id
-  ;;                    pid  prev-parent-id
-  ;;                    data data]
-  ;;               (let [obj (get-in data [:objects pid])]
-  ;;                 (if (and (= 1 (count (:shapes obj)))
-  ;;                          (= sid (first (:shapes obj)))
-  ;;                          (= :group (:type obj)))
-  ;;                   (recur pid
-  ;;                          (:parent-id obj)
-  ;;                          (update data :objects dissoc pid))
-  ;;                   (update-in data [:objects pid :shapes] (strip-id sid))))))))
-
-  ;;       parent (get-in data [:objects parent-id])
-  ;;       frame  (if (= :frame (:type parent))
-  ;;                parent
-  ;;                (get-in data [:objects (:frame-id parent)]))
-
-  ;;       frame-id (:id frame)
-
-  ;;       ;; Update parent-id references.
-  ;;       update-parent-id
-  ;;       (fn [data id]
-  ;;         (update-in data [:objects id] assoc :parent-id parent-id))
-
-  ;;       ;; Updates the frame-id references that might be outdated
-  ;;       update-frame-ids
-  ;;       (fn update-frame-ids [data id]
-  ;;         (let [data (assoc-in data [:objects id :frame-id] frame-id)
-  ;;               obj  (get-in data [:objects id])]
-  ;;           (cond-> data
-  ;;             (not= :frame (:type obj))
-  ;;             (as-> $$ (reduce update-frame-ids $$ (:shapes obj))))))]
-
-  ;;   (when valid?
-  ;;     (as-> data $
-  ;;       (update-in $ [:objects parent-id :shapes] insert-items)
-  ;;       (reduce update-parent-id $ shapes)
-  ;;       (reduce remove-from-old-parent $ shapes)
-  ;;       (reduce update-frame-ids $ (get-in $ [:objects parent-id :shapes]))))))
 
 (defmethod process-operation :set
   [shape op]

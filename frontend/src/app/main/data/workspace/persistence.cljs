@@ -9,17 +9,15 @@
 
 (ns app.main.data.workspace.persistence
   (:require
-   [beicon.core :as rx]
-   [cljs.spec.alpha :as s]
-   [potok.core :as ptk]
    [app.common.data :as d]
-   [app.common.media :as cm]
    [app.common.geom.point :as gpt]
+   [app.common.media :as cm]
    [app.common.pages :as cp]
    [app.common.spec :as us]
+   [app.common.uuid :as uuid]
    [app.main.data.dashboard :as dd]
-   [app.main.data.messages :as dm]
    [app.main.data.media :as di]
+   [app.main.data.messages :as dm]
    [app.main.data.workspace.common :as dwc]
    [app.main.repo :as rp]
    [app.main.store :as st]
@@ -27,7 +25,10 @@
    [app.util.object :as obj]
    [app.util.router :as rt]
    [app.util.time :as dt]
-   [app.util.transit :as t]))
+   [app.util.transit :as t]
+   [beicon.core :as rx]
+   [cljs.spec.alpha :as s]
+   [potok.core :as ptk]))
 
 (declare persist-changes)
 (declare update-selection-index)
@@ -334,81 +335,6 @@
     ptk/UpdateEvent
     (update [_ state]
       (assoc-in state [:workspace-pages id] page))))
-
-
-;; --- Page Crud
-
-(declare page-created)
-
-(def create-empty-page
-  (ptk/reify ::create-empty-page
-    ptk/WatchEvent
-    (watch [this state stream]
-      (let [file-id (get-in state [:workspace-file :id])
-            name (name (gensym "Page "))
-            ordering (count (get-in state [:workspace-file :pages]))
-            params {:name name
-                    :file-id file-id
-                    :ordering ordering
-                    :data cp/default-page-data}]
-        (->> (rp/mutation :create-page params)
-             (rx/map page-created))))))
-
-(defn page-created
-  [{:keys [id file-id] :as page}]
-  (us/verify ::page page)
-  (ptk/reify ::page-created
-    cljs.core/IDeref
-    (-deref [_] page)
-
-    ptk/UpdateEvent
-    (update [_ state]
-      (-> state
-          (update-in [:workspace-file :pages] (fnil conj []) id)
-          (assoc-in [:workspace-pages id] page)))))
-
-(s/def ::rename-page
-  (s/keys :req-un [::id ::name]))
-
-(defn rename-page
-  [id name]
-  (us/verify ::us/uuid id)
-  (us/verify string? name)
-  (ptk/reify ::rename-page
-    ptk/UpdateEvent
-    (update [_ state]
-      (let [pid (get-in state [:workspace-page :id])
-            state (assoc-in state [:workspace-pages id :name] name)]
-        (cond-> state
-          (= pid id) (assoc-in [:workspace-page :name] name))))
-
-    ptk/WatchEvent
-    (watch [_ state stream]
-      (let [params {:id id :name name}]
-        (->> (rp/mutation :rename-page params)
-             (rx/map #(ptk/data-event ::page-renamed params)))))))
-
-(declare purge-page)
-(declare go-to-file)
-
-;; TODO: broken,  go-to-file is defined in other ns
-(defn delete-page
-  [id]
-  {:pre [(uuid? id)]}
-  (reify
-    ptk/UpdateEvent
-    (update [_ state]
-      (purge-page state id))
-
-    ptk/WatchEvent
-    (watch [_ state s]
-      (let [page (:workspace-page state)]
-        (rx/merge
-         (->> (rp/mutation :delete-page  {:id id})
-              (rx/flat-map (fn [_]
-                             (if (= id (:id page))
-                               (rx/of go-to-file)
-                               (rx/empty))))))))))
 
 
 ;; --- Upload local media objects
