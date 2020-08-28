@@ -148,7 +148,6 @@
       (->> (rx/zip (rp/query :file {:id file-id})
                    (rp/query :file-users {:id file-id})
                    (rp/query :project-by-id {:project-id project-id})
-                   (rp/query :media-objects {:file-id file-id :is-local false})
                    (rp/query :file-libraries {:file-id file-id}))
            (rx/first)
            (rx/map (fn [bundle] (apply bundle-fetched bundle)))
@@ -164,62 +163,24 @@
                          :else
                          (throw error))))))))
 
-;; (defn- fetch-libraries-content
-;;   [libraries]
-;;   (if (empty? libraries)
-;;     (rx/of [{} {}])
-;;     (rx/zip
-;;       (->> ;; fetch media-objects list of each library, and concatenate in a sequence
-;;            (apply rx/zip (for [library libraries]
-;;                            (->> (rp/query :media-objects {:file-id (:id library)
-;;                                                           :is-local false})
-;;                                 (rx/map (fn [media-objects]
-;;                                           [(:id library) media-objects])))))
-
-;;            ;; reorganize the sequence as a map {library-id -> media-objects}
-;;            (rx/map (fn [media-list]
-;;                      (reduce (fn [result, [library-id media-objects]]
-;;                                (assoc result library-id media-objects))
-;;                              {}
-;;                              media-list))))
-
-;;       (->> ;; fetch colorss list of each library, and concatenate in a vector
-;;            (apply rx/zip (for [library libraries]
-;;                            (->> (rp/query :colors {:file-id (:id library)})
-;;                                 (rx/map (fn [colors]
-;;                                           [(:id library) colors])))))
-
-;;            ;; reorganize the sequence as a map {library-id -> colors}
-;;            (rx/map (fn [colors-list]
-;;                      (reduce (fn [result, [library-id colors]]
-;;                                (assoc result library-id colors))
-;;                              {}
-;;                              colors-list)))))))
-
 (defn- bundle-fetched
-  [file users project media-objects libraries]
+  [file users project libraries]
   (ptk/reify ::bundle-fetched
     IDeref
     (-deref [_]
       {:file file
        :users users
        :project project
-       :media-objects media-objects
        :libraries libraries})
 
     ptk/UpdateEvent
     (update [_ state]
-      (as-> state $$
-        (assoc $$
-               :workspace-project project
-               :workspace-file file
-               :workspace-data (:data file)
-               :workspace-media-objects media-objects
-               :workspace-users (d/index-by :id users)
-               :workspace-libraries (d/index-by :id libraries))
-        #_(reduce assoc-media-objects $$ (keys lib-media-objects))
-        #_(reduce assoc-colors $$ (keys lib-colors))
-        #_(reduce assoc-page $$ pages)))))
+      (assoc state
+             :workspace-project project
+             :workspace-file file
+             :workspace-data (:data file)
+             :workspace-users (d/index-by :id users)
+             :workspace-libraries (d/index-by :id libraries)))))
 
 
 ;; --- Set File shared
@@ -366,23 +327,7 @@
              (fn [uri]
                {:file-id file-id
                 :is-local local?
-                :url uri})
-
-             assoc-to-library
-             (fn [media-object state]
-               (cond
-                 (true? local?)
-                 state
-
-                 (true? is-library)
-                 (update-in state
-                            [:workspace-libraries file-id :media-objects]
-                            #(conj % media-object))
-
-                 :else
-                 (update-in state
-                            [:workspace-file :media-objects]
-                            #(conj % media-object))))]
+                :url uri})]
 
          (rx/concat
           (rx/of (dm/show {:content (tr "media.loading")
@@ -397,7 +342,6 @@
                       (rx/map prepare-js-file)
                       (rx/mapcat #(rp/mutation! :upload-media-object %))))
                (rx/do on-success)
-               (rx/map (fn [mobj] (partial assoc-to-library mobj)))
                (rx/catch (fn [error]
                            (cond
                              (= (:code error) :media-type-not-allowed)
@@ -422,17 +366,6 @@
 (defn delete-media-object
   [file-id id]
   (ptk/reify ::delete-media-object
-    ptk/UpdateEvent
-    (update [_ state]
-      (let [is-library (not= file-id (:id (:workspace-file state)))]
-        (if is-library
-          (update-in state
-                     [:workspace-libraries file-id :media-objects]
-                     (fn [media-objects] (filter #(not= (:id %) id) media-objects)))
-          (update-in state
-                     [:workspace-file :media-objects]
-                     (fn [media-objects] (filter #(not= (:id %) id) media-objects))))))
-
     ptk/WatchEvent
     (watch [_ state stream]
       (let [params {:id id}]

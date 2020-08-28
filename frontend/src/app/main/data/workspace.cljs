@@ -124,7 +124,7 @@
        (->> stream
             (rx/filter (ptk/type? ::dwp/bundle-fetched))
             (rx/first)
-            (rx/mapcat #(rx/of (dwn/initialize file-id)
+            (rx/mapcat #(rx/of #_(dwn/initialize file-id)
                                (dwp/initialize-file-persistence file-id))))
 
        ;; Initialize Indexes (webworker)
@@ -163,7 +163,7 @@
 
     ptk/WatchEvent
     (watch [_ state stream]
-      (rx/of (dwn/finalize file-id)
+      (rx/of #_(dwn/finalize file-id)
              ::dwp/finalize))))
 
 

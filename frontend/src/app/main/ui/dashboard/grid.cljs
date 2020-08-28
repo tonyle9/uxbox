@@ -50,10 +50,17 @@
   (let [local  (mf/use-state {:menu-open false :edition false})
         locale (mf/deref i18n/locale)
 
-        delete-fn  (mf/use-callback (mf/deps id) #(st/emit! nil (dsh/delete-file id)))
-        on-delete  (mf/use-callback (mf/deps id) #(modal/show! confirm-dialog {:on-accept delete-fn}))
+        delete     (mf/use-callback (mf/deps id) #(st/emit! nil (dsh/delete-file id)))
         add-shared (mf/use-callback (mf/deps id) #(st/emit! (dsh/set-file-shared id true)))
         del-shared (mf/use-callback (mf/deps id) #(st/emit! (dsh/set-file-shared id false)))
+        on-close   (mf/use-callback #(swap! local assoc :menu-open false))
+
+        on-delete
+        (mf/use-callback
+         (mf/deps id)
+         (fn [event]
+           (dom/stop-propagation event)
+           (modal/show! confirm-dialog {:on-accept delete})))
 
         on-navigate
         (mf/use-callback
@@ -67,7 +74,8 @@
         on-add-shared
         (mf/use-callback
          (mf/deps id)
-         (fn []
+         (fn [event]
+           (dom/stop-propagation event)
            (modal/show! confirm-dialog
                         {:message (t locale "dashboard.grid.add-shared-message" (:name file))
                          :hint (t locale "dashboard.grid.add-shared-hint")
@@ -75,16 +83,31 @@
                          :not-danger? true
                          :on-accept add-shared})))
 
+        on-edit
+        (mf/use-callback
+         (mf/deps id)
+         (fn [event]
+           (dom/stop-propagation event)
+           (swap! local assoc :edition true)))
+
         on-del-shared
         (mf/use-callback
          (mf/deps id)
-         (fn []
+         (fn [event]
+           (dom/stop-propagation event)
            (modal/show! confirm-dialog
                         {:message (t locale "dashboard.grid.remove-shared-message" (:name file))
                          :hint (t locale "dashboard.grid.remove-shared-hint")
                          :accept-text (t locale "dashboard.grid.remove-shared-accept")
                          :not-danger? false
                          :on-accept del-shared})))
+
+        on-menu-click
+        (mf/use-callback
+         (mf/deps id)
+         (fn [event]
+           (dom/stop-propagation event)
+           (swap! local assoc :menu-open true)))
 
         on-blur
         (mf/use-callback
@@ -100,9 +123,7 @@
             (kbd/enter? %) (on-blur %)
             (kbd/esc? %) (swap! local assoc :edition false)))
 
-        on-menu-click (mf/use-callback #(swap! local assoc :menu-open true))
-        on-menu-close (mf/use-callback #(swap! local assoc :menu-open false))
-        on-edit       (mf/use-callback #(swap! local assoc :edition true))]
+        ]
     [:div.grid-item.project-th {:on-click on-navigate}
      [:div.overlay]
      [:& grid-item-thumbnail {:file file}]
@@ -120,16 +141,10 @@
       [:& grid-item-metadata {:modified-at (:modified-at file)}]]
      [:div.project-th-actions {:class (dom/classnames
                                        :force-display (:menu-open @local))}
-      ;; [:div.project-th-icon.pages
-      ;;  i/page
-      ;;  #_[:span (:total-pages project)]]
-      ;; [:div.project-th-icon.comments
-      ;;  i/chat
-      ;;  [:span "0"]]
       [:div.project-th-icon.menu
        {:on-click on-menu-click}
        i/actions]
-      [:& context-menu {:on-close on-menu-close
+      [:& context-menu {:on-close on-close
                         :show (:menu-open @local)
                         :options [[(t locale "dashboard.grid.rename") on-edit]
                                   [(t locale "dashboard.grid.delete") on-delete]

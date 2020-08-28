@@ -81,6 +81,13 @@
                      (assoc :pages (get-in file [:data :pages])))))
              st/state =))
 
+
+(def workspace-file-colors
+  (l/derived (fn [state]
+               (when-let [file (:workspace-file state)]
+                 (get-in file [:data :colors])))
+             st/state))
+
 (def workspace-project
   (l/derived :workspace-project st/state))
 

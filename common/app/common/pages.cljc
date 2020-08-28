@@ -34,118 +34,138 @@
 (s/def ::session-id uuid?)
 (s/def ::name string?)
 (s/def ::parent-id uuid?)
+(s/def ::ids (s/coll-of ::us/uuid))
+(s/def ::attr keyword?)
+(s/def ::val any?)
+(s/def ::frame-id uuid?)
+(s/def ::type keyword?)
 
 ;; Page Options
-(s/def ::grid-x number?)
-(s/def ::grid-y number?)
-(s/def ::grid-color string?)
 
-(s/def ::options
-  (s/keys :opt-un [::grid-y
-                   ::grid-x
-                   ::grid-color]))
+;; TODO: revisit (this is still valid spec?)
+
+(s/def :internal.page.options/grid-x number?)
+(s/def :internal.page.options/grid-y number?)
+(s/def :internal.page.options/grid-color string?)
+
+(s/def :internal.page/options
+  (s/keys :opt-un [:internal.page.options/grid-x
+                   :internal.page.options/grid-y
+                   :internal.page.options/grid-color]))
 
 ;; Interactions
 
-(s/def ::event-type #{:click}) ; In the future we will have more options
-(s/def ::action-type #{:navigate})
-(s/def ::destination uuid?)
+(s/def :internal.shape.interaction/event-type #{:click}) ; In the future we will have more options
+(s/def :internal.shape.interaction/action-type #{:navigate})
+(s/def :internal.shape.interaction/destination ::us/uuid)
 
-(s/def ::interaction
-  (s/keys :req-un [::event-type
-                   ::action-type
-                   ::destination]))
+(s/def :internal.shape/interaction
+  (s/keys :req-un [:internal.shape.interaction/event-type
+                   :internal.shape.interaction/action-type
+                   :internal.shape.interaction/destination]))
 
-(s/def ::interactions (s/coll-of ::interaction :kind vector?))
+(s/def :internal.shape/interactions
+  (s/coll-of :internal.shape/interaction :kind vector?))
 
 ;; Page Data related
-(s/def ::blocked boolean?)
-(s/def ::collapsed boolean?)
-(s/def ::content any?)
-(s/def ::fill-color string?)
-(s/def ::fill-opacity number?)
-(s/def ::font-family string?)
-(s/def ::font-size number?)
-(s/def ::font-style string?)
-(s/def ::font-weight string?)
-(s/def ::hidden boolean?)
-(s/def ::letter-spacing number?)
-(s/def ::line-height number?)
-(s/def ::locked boolean?)
-(s/def ::page-id uuid?)
-(s/def ::proportion number?)
-(s/def ::proportion-lock boolean?)
-(s/def ::rx number?)
-(s/def ::ry number?)
-(s/def ::stroke-color string?)
-(s/def ::stroke-opacity number?)
-(s/def ::stroke-style #{:solid :dotted :dashed :mixed :none})
-(s/def ::stroke-width number?)
-(s/def ::stroke-alignment #{:center :inner :outer})
-(s/def ::text-align #{"left" "right" "center" "justify"})
-(s/def ::type keyword?)
-(s/def ::x number?)
-(s/def ::y number?)
-(s/def ::cx number?)
-(s/def ::cy number?)
-(s/def ::width number?)
-(s/def ::height number?)
-(s/def ::index integer?)
-(s/def ::x1 number?)
-(s/def ::y1 number?)
-(s/def ::x2 number?)
-(s/def ::y2 number?)
+(s/def :internal.shape/blocked boolean?)
+(s/def :internal.shape/collapsed boolean?)
+(s/def :internal.shape/content any?)
+(s/def :internal.shape/fill-color string?)
+(s/def :internal.shape/fill-opacity number?)
+(s/def :internal.shape/font-family string?)
+(s/def :internal.shape/font-size number?)
+(s/def :internal.shape/font-style string?)
+(s/def :internal.shape/font-weight string?)
+(s/def :internal.shape/hidden boolean?)
+(s/def :internal.shape/letter-spacing number?)
+(s/def :internal.shape/line-height number?)
+(s/def :internal.shape/locked boolean?)
+(s/def :internal.shape/page-id uuid?)
+(s/def :internal.shape/proportion number?)
+(s/def :internal.shape/proportion-lock boolean?)
+(s/def :internal.shape/rx number?)
+(s/def :internal.shape/ry number?)
+(s/def :internal.shape/stroke-color string?)
+(s/def :internal.shape/stroke-opacity number?)
+(s/def :internal.shape/stroke-style #{:solid :dotted :dashed :mixed :none})
+(s/def :internal.shape/stroke-width number?)
+(s/def :internal.shape/stroke-alignment #{:center :inner :outer})
+(s/def :internal.shape/text-align #{"left" "right" "center" "justify"})
+(s/def :internal.shape/x number?)
+(s/def :internal.shape/y number?)
+(s/def :internal.shape/cx number?)
+(s/def :internal.shape/cy number?)
+(s/def :internal.shape/width number?)
+(s/def :internal.shape/height number?)
+(s/def :internal.shape/index integer?)
 
-(s/def ::suffix string?)
-(s/def ::scale number?)
-(s/def ::export
-  (s/keys :req-un [::type ::suffix ::scale]))
+(s/def :internal.shape/x1 number?)
+(s/def :internal.shape/y1 number?)
+(s/def :internal.shape/x2 number?)
+(s/def :internal.shape/y2 number?)
 
-(s/def ::exports (s/coll-of ::export :kind vector?))
+(s/def :internal.shape.export/suffix string?)
+(s/def :internal.shape.export/scale number?)
+(s/def :internal.shape/export
+  (s/keys :req-un [::type
+                   :internal.shape.export/suffix
+                   :internal.shape.export/scale]))
+
+(s/def :internal.shape/exports
+  (s/coll-of :internal.shape/export :kind vector?))
 
 
-(s/def ::selrect (s/keys :req-un [::x
-                                  ::y
-                                  ::x1
-                                  ::y1
-                                  ::x2
-                                  ::y2
-                                  ::width
-                                  ::height]))
+(s/def :internal.shape/selrect
+  (s/keys :req-un [:internal.shape/x
+                   :internal.shape/y
+                   :internal.shape/x1
+                   :internal.shape/y1
+                   :internal.shape/x2
+                   :internal.shape/y2
+                   :internal.shape/width
+                   :internal.shape/height]))
 
-(s/def ::point (s/keys :req-un [::x ::y]))
-(s/def ::points (s/coll-of ::point :kind vector?))
+(s/def :internal.shape/point
+  (s/keys :req-un [:internal.shape/x :internal.shape/y]))
+
+(s/def :internal.shape/points
+  (s/coll-of :internal.shape/point :kind vector?))
 
 (s/def ::shape-attrs
-  (s/keys :opt-un [::blocked
-                   ::collapsed
-                   ::content
-                   ::fill-color
-                   ::fill-opacity
-                   ::font-family
-                   ::font-size
-                   ::font-style
-                   ::font-weight
-                   ::hidden
-                   ::letter-spacing
-                   ::line-height
-                   ::locked
-                   ::proportion
-                   ::proportion-lock
-                   ::rx ::ry
-                   ::cx ::cy
-                   ::x ::y
-                   ::exports
-                   ::stroke-color
-                   ::stroke-opacity
-                   ::stroke-style
-                   ::stroke-width
-                   ::stroke-alignment
-                   ::text-align
-                   ::width ::height
-                   ::interactions
-                   ::selrect
-                   ::points]))
+  (s/keys :opt-un [:internal.shape/blocked
+                   :internal.shape/collapsed
+                   :internal.shape/content
+                   :internal.shape/fill-color
+                   :internal.shape/fill-opacity
+                   :internal.shape/font-family
+                   :internal.shape/font-size
+                   :internal.shape/font-style
+                   :internal.shape/font-weight
+                   :internal.shape/hidden
+                   :internal.shape/letter-spacing
+                   :internal.shape/line-height
+                   :internal.shape/locked
+                   :internal.shape/proportion
+                   :internal.shape/proportion-lock
+                   :internal.shape/rx
+                   :internal.shape/ry
+                   :internal.shape/cx
+                   :internal.shape/cy
+                   :internal.shape/x
+                   :internal.shape/y
+                   :internal.shape/exports
+                   :internal.shape/stroke-color
+                   :internal.shape/stroke-opacity
+                   :internal.shape/stroke-style
+                   :internal.shape/stroke-width
+                   :internal.shape/stroke-alignment
+                   :internal.shape/text-align
+                   :internal.shape/width
+                   :internal.shape/height
+                   :internal.shape/interactions
+                   :internal.shape/selrect
+                   :internal.shape/points]))
 
 (s/def ::minimal-shape
   (s/keys :req-un [::type ::name]
@@ -155,29 +175,59 @@
   (s/and ::minimal-shape ::shape-attrs
          (s/keys :opt-un [::id])))
 
-(s/def ::shapes (s/coll-of uuid? :kind vector?))
-(s/def ::canvas (s/coll-of uuid? :kind vector?))
-
-(s/def ::objects
-  (s/map-of uuid? ::shape))
+(s/def :internal.page/objects (s/map-of uuid? ::shape))
 
 (s/def ::page
   (s/keys :req-un [::id
                    ::name
-                   ::options
-                   ::objects]))
+                   :internal.page/options
+                   :internal.page/objects]))
 
-(s/def ::pages (s/coll-of ::us/uuid :kind vector?))
-(s/def ::pages-index (s/map-of ::us/uuid ::page))
+(s/def :internal.color/name ::us/string)
+(s/def :internal.color/value ::us/string)
 
-;; TODO: missing colors and components
+(s/def ::color
+  (s/keys :req-un [::id
+                   :internal.color/name
+                   :internal.color/value]))
+
+(s/def :internal.media-object/name ::us/string)
+(s/def :internal.media-object/path ::us/string)
+(s/def :internal.media-object/width ::us/integer)
+(s/def :internal.media-object/height ::us/integer)
+(s/def :internal.media-object/mtype ::us/string)
+(s/def :internal.media-object/thumb-path ::us/string)
+(s/def :internal.media-object/thumb-width ::us/integer)
+(s/def :internal.media-object/thumb-height ::us/integer)
+(s/def :internal.media-object/thumb-mtype ::us/string)
+
+(s/def ::media-object
+  (s/keys :req-un [::id ::name
+                   :internal.media-object/name
+                   :internal.media-object/path
+                   :internal.media-object/width
+                   :internal.media-object/height
+                   :internal.media-object/mtype
+                   :internal.media-object/thumb-path]))
+
+
+(s/def :internal.file/colors
+  (s/map-of ::us/uuid ::color))
+
+(s/def :internal.file/pages
+  (s/coll-of ::us/uuid :kind vector?))
+
+(s/def :internal.file/media
+  (s/map-of ::us/uuid ::media-object))
+
+(s/def :internal.file/pages-index
+  (s/map-of ::us/uuid ::page))
+
 (s/def ::data
-  (s/keys :req-un [::pages-index ::pages]))
-
-(s/def ::ids (s/coll-of ::us/uuid))
-(s/def ::attr keyword?)
-(s/def ::val any?)
-(s/def ::frame-id uuid?)
+  (s/keys :req-un [:internal.file/pages-index
+                   :internal.file/pages]
+          :opt-un [:internal.file/colors
+                   :internal.file/media]))
 
 (defmulti operation-spec-impl :type)
 
@@ -197,7 +247,6 @@
   (s/keys :req-un [::id ::page-id ::frame-id ::obj]
           :opt-un [::parent-id]))
 
-
 (s/def ::operation (s/multi-spec operation-spec-impl :type))
 (s/def ::operations (s/coll-of ::operation))
 
@@ -207,8 +256,11 @@
 (defmethod change-spec-impl :del-obj [_]
   (s/keys :req-un [::id ::page-id]))
 
+(s/def :internal.changes.reg-objects/shapes
+  (s/coll-of uuid? :kind vector?))
+
 (defmethod change-spec-impl :reg-objects [_]
-  (s/keys :req-un [::page-id ::shapes]))
+  (s/keys :req-un [::page-id :internal.changes.reg-objects/shapes]))
 
 (defmethod change-spec-impl :mov-objects [_]
   (s/keys :req-un [::page-id ::parent-id ::shapes]
@@ -224,7 +276,25 @@
 (defmethod change-spec-impl :del-page [_]
   (s/keys :req-un [::id]))
 
+(defmethod change-spec-impl :add-color [_]
+  (s/keys :req-un [::color]))
 
+(defmethod change-spec-impl :mod-color [_]
+  (s/keys :req-un [::color]))
+
+(defmethod change-spec-impl :del-color [_]
+  (s/keys :req-un [::id]))
+
+(s/def :internal.changes.media/object ::media-object)
+
+(defmethod change-spec-impl :add-media [_]
+  (s/keys :req-un [:internal.changes.media/object]))
+
+(defmethod change-spec-impl :mod-media [_]
+  (s/keys :req-un [:internal.changes.media/object]))
+
+(defmethod change-spec-impl :del-media [_]
+  (s/keys :req-un [::id]))
 
 (s/def ::change (s/multi-spec change-spec-impl :type))
 (s/def ::changes (s/coll-of ::change))
@@ -254,6 +324,8 @@
 
 (def empty-file-data
   {:version file-version
+   :media {}
+   :colors {}
    :pages []
    :pages-index {}})
 
@@ -573,13 +645,11 @@
     (map? page)
     (->> data
          (update :pages conj (:id page)
-                 (update :pages-index assoc (:id page))))
+                 (update :pages-index assoc (:id page) page)))
 
     :else
     (ex/raise :type :conflict
               :hint "name or page should be provided, never both")))
-
-
 
 (defmethod process-change :mod-page
   [data {:keys [id name]}]
@@ -590,6 +660,31 @@
   (-> data
       (update :pages (fn [pages] (filterv #(not= % id) pages)))
       (update :pages-index dissoc id)))
+
+(defmethod process-change :add-color
+  [data {:keys [color]}]
+  (update data :colors assoc (:id color) color))
+
+(defmethod process-change :mod-color
+  [data {:keys [color]}]
+  (d/update-in-when data [:colors (:id color)] merge color))
+
+(defmethod process-change :del-color
+  [data {:keys [id]}]
+  (update data :colors dissoc id))
+
+(defmethod process-change :add-media
+  [data {:keys [object]}]
+  (update data :media assoc (:id object) object))
+
+(defmethod process-change :mod-media
+  [data {:keys [object]}]
+  (d/update-in-when data [:media (:id object)] merge object))
+
+(defmethod process-change :del-media
+  [data {:keys [id]}]
+  (update data :media dissoc id))
+
 
 
 (defmethod process-operation :set
